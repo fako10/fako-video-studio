@@ -33,6 +33,7 @@ services:
       start_period: 10s
 
   api:
+    image: fako-production-api:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile
@@ -52,6 +53,7 @@ services:
       RIJPERMIS_API_BASE_URL: ${RIJPERMIS_API_BASE_URL:-}
       RIJPERMIS_API_KEY: ${RIJPERMIS_API_KEY:-}
       RIJPERMIS_MOCK_MODE: ${RIJPERMIS_MOCK_MODE:-false}
+      FAKO_ALLOW_MOCK_IN_PRODUCTION: ${FAKO_ALLOW_MOCK_IN_PRODUCTION:-false}
       RIJPERMIS_MEDIA_ROOT: /app/storage/rijpermis-images
       QUIZ_VIDEO_ENABLED: ${QUIZ_VIDEO_ENABLED:-false}
       QUIZ_VIDEO_API_TOKEN: ${QUIZ_VIDEO_API_TOKEN:?Set QUIZ_VIDEO_API_TOKEN (shared admin Bearer token, 32+ chars)}
@@ -85,6 +87,7 @@ services:
       start_period: 10s
 
   worker:
+    image: fako-production-worker:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile
@@ -111,6 +114,7 @@ services:
       RIJPERMIS_API_BASE_URL: ${RIJPERMIS_API_BASE_URL:-}
       RIJPERMIS_API_KEY: ${RIJPERMIS_API_KEY:-}
       RIJPERMIS_MOCK_MODE: ${RIJPERMIS_MOCK_MODE:-false}
+      FAKO_ALLOW_MOCK_IN_PRODUCTION: ${FAKO_ALLOW_MOCK_IN_PRODUCTION:-false}
       RIJPERMIS_MEDIA_ROOT: /app/storage/rijpermis-images
       QUIZ_VIDEO_ENABLED: ${QUIZ_VIDEO_ENABLED:-false}
       QUIZ_VIDEO_TTS_PROVIDER: ${QUIZ_VIDEO_TTS_PROVIDER:-disabled}
@@ -160,6 +164,7 @@ services:
   # developer's own machine. Both are DB-only/HTTP-client processes (never render, never touch
   # Redis/BullMQ directly), so they reuse the lean `runtime` target, not `worker-runtime`.
   scheduler-generation:
+    image: fako-production-scheduler-generation:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile
@@ -180,6 +185,7 @@ services:
       RIJPERMIS_API_BASE_URL: ${RIJPERMIS_API_BASE_URL:-}
       RIJPERMIS_API_KEY: ${RIJPERMIS_API_KEY:-}
       RIJPERMIS_MOCK_MODE: ${RIJPERMIS_MOCK_MODE:-false}
+      FAKO_ALLOW_MOCK_IN_PRODUCTION: ${FAKO_ALLOW_MOCK_IN_PRODUCTION:-false}
       RIJPERMIS_MEDIA_ROOT: /app/storage/rijpermis-images
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
@@ -190,6 +196,7 @@ services:
         condition: service_healthy
 
   scheduler-publication:
+    image: fako-production-scheduler-publication:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile
@@ -211,6 +218,7 @@ services:
   # Mission 15 section 3/5: the admin interface (mission 12) was never containerized either — it only
   # ever talks to `api` over HTTP (never to PostgreSQL/Redis directly), so it only joins `application`.
   web:
+    image: fako-production-web:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile
@@ -264,6 +272,7 @@ services:
 
   migrate:
     profiles: [tools]
+    image: fako-production-migrate:${FAKO_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: infrastructure/docker/app.Dockerfile

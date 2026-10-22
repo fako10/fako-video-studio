@@ -56,6 +56,13 @@ test('contentSourceFromEnv refuses mock mode in production even if explicitly re
     assert.throws(() => contentSourceFromEnv({ RIJPERMIS_MOCK_MODE: 'true', NODE_ENV: 'production' }), /RIJPERMIS_MOCK_MODE_FORBIDDEN_IN_PRODUCTION/);
 });
 
+// Mission 16: a staging deployment needs NODE_ENV=production (secure cookies) while staying mock-only
+// — FAKO_ALLOW_MOCK_IN_PRODUCTION is the explicit, separate opt-in that lifts this one guard, nothing else.
+test('contentSourceFromEnv allows mock mode in production only with the explicit FAKO_ALLOW_MOCK_IN_PRODUCTION opt-in', () => {
+    assert.ok(contentSourceFromEnv({ RIJPERMIS_MOCK_MODE: 'true', NODE_ENV: 'production', FAKO_ALLOW_MOCK_IN_PRODUCTION: 'true' }) instanceof MockContentSourceProvider);
+    assert.throws(() => contentSourceFromEnv({ RIJPERMIS_MOCK_MODE: 'true', NODE_ENV: 'production', FAKO_ALLOW_MOCK_IN_PRODUCTION: 'false' }), /RIJPERMIS_MOCK_MODE_FORBIDDEN_IN_PRODUCTION/);
+});
+
 test('contentSourceFromEnv builds the real connector when enabled and not in mock mode', () => {
     const real = contentSourceFromEnv({ RIJPERMIS_API_ENABLED: 'true', RIJPERMIS_API_BASE_URL: 'https://rijpermis.example', RIJPERMIS_API_KEY: 'k' });
     assert.equal(real?.sourceId, 'rijpermis');

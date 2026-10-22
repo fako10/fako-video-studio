@@ -10,10 +10,12 @@ import { logger } from './logger.js';
 function resolveTtsProvider(): TTSProvider {
     const name = process.env.QUIZ_VIDEO_TTS_PROVIDER ?? 'disabled';
     if (name === 'mock') {
-        // Explicitly sanctioned for local development only (mission 10); never allowed in production,
-        // unlike the shared TTS_PROVIDER used by the AudioAsset pipeline (mission 5), which never
-        // accepts a mock value at all.
-        if (process.env.NODE_ENV === 'production') throw new Error('QUIZ_VIDEO_TTS_PROVIDER=mock is forbidden when NODE_ENV=production');
+        // Explicitly sanctioned for local development only (mission 10); refused in production unless
+        // FAKO_ALLOW_MOCK_IN_PRODUCTION=true is ALSO set (mission 16's staging deployment) — unlike the
+        // shared TTS_PROVIDER used by the AudioAsset pipeline (mission 5), which never accepts "mock" at all.
+        if (process.env.NODE_ENV === 'production' && process.env.FAKO_ALLOW_MOCK_IN_PRODUCTION !== 'true') {
+            throw new Error('QUIZ_VIDEO_TTS_PROVIDER=mock is forbidden when NODE_ENV=production');
+        }
         return new MockTTSProvider();
     }
     if (name === 'elevenlabs') return new ElevenLabsProvider(process.env.ELEVENLABS_API_KEY ?? '');

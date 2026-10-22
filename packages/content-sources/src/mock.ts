@@ -27,10 +27,13 @@ export class MockContentSourceProvider implements ContentSourceProvider {
     async downloadImage(_question: SourceQuestion): Promise<null> { return null; }
 }
 
-// Fake questions only; never reachable in production, regardless of other configuration.
+// Fake questions only; refused in production unless FAKO_ALLOW_MOCK_IN_PRODUCTION=true is ALSO set —
+// mission 16's deliberate, explicit double opt-in for a staging deployment that must run under
+// NODE_ENV=production (for secure cookies etc.) while still using only mock data. Absent/false is the
+// safe default; a real production deployment should never set this.
 export function contentSourceFromEnv(env: NodeJS.ProcessEnv = process.env): ContentSourceProvider | undefined {
     if ((env.RIJPERMIS_MOCK_MODE ?? 'false') === 'true') {
-        if (env.NODE_ENV === 'production') throw new ContentSourceError(503, 'RIJPERMIS_MOCK_MODE_FORBIDDEN_IN_PRODUCTION');
+        if (env.NODE_ENV === 'production' && env.FAKO_ALLOW_MOCK_IN_PRODUCTION !== 'true') throw new ContentSourceError(503, 'RIJPERMIS_MOCK_MODE_FORBIDDEN_IN_PRODUCTION');
         return new MockContentSourceProvider();
     }
     return contentProviderFromEnv(env);

@@ -3,6 +3,7 @@ Description=Fako Video Studio - PostgreSQL + media backup
 # Adjust WorkingDirectory to the actual checkout path on the VPS before installing.
 [Service]
 Type=oneshot
+User=fako
 WorkingDirectory=/opt/fako-video-studio
 ExecStart=/opt/fako-video-studio/infrastructure/docker/backup.sh
 # Fails loudly (non-zero exit) on an empty/incomplete dump or archive — pair with
