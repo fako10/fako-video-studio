@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+!.env.test.example
+.idea/
+*.iml
+coverage/
+backups/
+*.dump
+
+# Defense in depth: local Claude Code settings can carry real local credentials (DB password,
+# test admin password). Already covered by the user's global gitignore, but must not depend on it.
+.claude/settings.local.json
+
+# Private generated audio
+storage/
+
+# Staged images/narration for local Remotion renders (regenerated on demand)
+packages/video-templates/public/

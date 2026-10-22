@@ -1,0 +1,8 @@
+[Unit]
+Description=Fako Video Studio - prune old quiz video files (retention policy)
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/fako-video-studio
+# Review the dry-run output at least once after any retention policy change before ever adding
+# --confirm to this line — see infrastructure/docker/README.md's "Rétention des vidéos" section.
+ExecStart=/opt/fako-video-studio/infrastructure/docker/prune-videos.sh

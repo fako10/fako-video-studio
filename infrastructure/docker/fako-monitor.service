@@ -1,0 +1,9 @@
+[Unit]
+Description=Fako Video Studio - operational monitoring sweep
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/fako-video-studio
+ExecStart=/opt/fako-video-studio/infrastructure/docker/monitor.sh
+# Exits non-zero whenever there is something to review (failed jobs, blocked/unknown publications,
+# disk threshold) — pair with `systemctl --failed` or an OnFailure= unit that actually notifies
+# someone (mail, webhook); this unit only detects, it never sends a notification itself.

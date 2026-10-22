@@ -1,0 +1,27 @@
+{
+  "name": "@fako/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/scheduler.ts",
+    "start": "node --env-file-if-exists=.env dist/scheduler.js",
+    "dev:social-publications": "tsx watch --env-file-if-exists=.env src/social-publication-scheduler.ts",
+    "start:social-publications": "node --env-file-if-exists=.env dist/social-publication-scheduler.js",
+    "simulate": "tsx --env-file-if-exists=.env src/simulate.ts",
+    "build": "tsc",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@fako/content-sources": "0.1.0",
+    "@fako/quiz-pipeline": "0.1.0",
+    "@fako/social-publishing": "0.1.0",
+    "@prisma/client": "6.12.0",
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

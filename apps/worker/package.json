@@ -1,0 +1,28 @@
+{
+  "name": "@fako/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/worker.ts",
+    "start": "node --env-file-if-exists=.env dist/worker.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@fako/ai-providers": "0.1.0",
+    "@fako/content-sources": "0.1.0",
+    "@fako/media-engine": "0.1.0",
+    "@fako/publishing": "0.1.0",
+    "@fako/quiz-pipeline": "0.1.0",
+    "@fako/social-publishing": "0.1.0",
+    "@fako/video-jobs": "0.1.0",
+    "@prisma/client": "6.12.0",
+    "bullmq": "^5.0.0",
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

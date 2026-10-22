@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+.git
+.idea
+**/.env
+**/.env.*
+**/*.dump
+backups
+storage
+*.iml

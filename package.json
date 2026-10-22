@@ -1,0 +1,26 @@
+{
+  "name": "fako-video-studio",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run db:generate --workspace=@fako/api && npm run build --workspace=@fako/content-sources && npm run build --workspace=@fako/video-jobs && npm run build --workspace=@fako/publishing && npm run build --workspace=@fako/ai-providers && npm run build --workspace=@fako/video-templates && npm run build --workspace=@fako/media-engine && npm run build --workspace=@fako/quiz-pipeline && npm run build --workspace=@fako/social-publishing && npm run build --workspace=@fako/api && npm run build --workspace=@fako/worker && npm run build --workspace=@fako/scheduler && npm run build --workspace=@fako/web",
+    "dev:worker": "npm run dev --workspace=@fako/worker",
+    "dev:api": "npm run dev --workspace=@fako/api",
+    "dev:scheduler": "npm run dev --workspace=@fako/scheduler",
+    "dev:web": "npm run dev --workspace=@fako/web",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@prisma/client": "6.12.0"
+  },
+  "devDependencies": {
+    "prisma": "6.12.0"
+  }
+}

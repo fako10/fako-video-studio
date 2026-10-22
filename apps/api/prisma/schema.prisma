@@ -1,0 +1,494 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String          @db.VarChar(200)
+  description String?         @db.VarChar(5000)
+  slug        String?         @unique @db.VarChar(100)
+  website     String?         @db.VarChar(2048)
+  category    String?         @db.VarChar(200)
+  languages   String[]        @default([])
+  objective   String?         @db.VarChar(5000)
+  editorialInstructions String @default("") @db.Text
+  verifiedFacts Json @default("[]")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  settings    ProjectSettings?
+  voices ProjectVoice[]
+  videoJobs   VideoJob[]
+  quizVideos  QuizVideo[]
+  scheduledQuizSlots ScheduledQuizSlot[]
+  socialAccounts SocialAccount[]
+  socialOAuthStates SocialOAuthState[]
+  socialPublications SocialPublication[]
+}
+
+enum VideoJobStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model VideoJob {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  subject String @db.VarChar(500)
+  language String @db.VarChar(10)
+  format String @default("VERTICAL") @db.VarChar(20)
+  targetDuration Int @default(30)
+  width Int
+  height Int
+  fps Int
+  status VideoJobStatus @default(PENDING)
+  progress Int @default(0)
+  attempts Int @default(0)
+  errorMessage String? @db.VarChar(2000)
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startedAt DateTime?
+  finishedAt DateTime?
+  cancelledAt DateTime?
+  approvedAt DateTime?
+  approvedBy String? @db.VarChar(200)
+  scriptGenerationRequested Boolean @default(false)
+  audioAssets AudioAsset[]
+  scripts VideoScript[]
+
+  @@index([projectId, createdAt])
+  @@index([status, id])
+}
+
+enum ScriptGenerationStatus {
+  PENDING
+  PROCESSING
+  GENERATED
+  FAILED
+  CANCELLED
+}
+
+enum ScriptValidationStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model VideoScript {
+  id String @id @default(uuid()) @db.Uuid
+  videoJobId String @db.Uuid
+  videoJob VideoJob @relation(fields: [videoJobId], references: [id], onDelete: Restrict)
+  requestId String @unique @db.Uuid
+  version Int
+  language String @db.VarChar(10)
+  title String? @db.VarChar(300)
+  hook String? @db.VarChar(500)
+  narration String? @db.Text
+  scenes Json?
+  onScreenTexts Json?
+  estimatedDuration Int?
+  generationStatus ScriptGenerationStatus @default(PENDING)
+  validationStatus ScriptValidationStatus @default(PENDING_APPROVAL)
+  editorialSnapshot Json
+  attempts Int @default(0)
+  errorMessage String? @db.VarChar(500)
+  generationStartedAt DateTime?
+  generatedAt DateTime?
+  reviewedAt DateTime?
+  reviewedBy String? @db.VarChar(200)
+  reviewComment String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contentSource VideoScriptSource?
+  audioAsset AudioAsset?
+  aiRequests AIRequest[]
+
+  @@unique([videoJobId, version])
+  @@index([generationStatus, id])
+}
+
+model AIRequest {
+  id String @id @default(uuid()) @db.Uuid
+  videoScriptId String @db.Uuid
+  videoScript VideoScript @relation(fields: [videoScriptId], references: [id], onDelete: Restrict)
+  attempt Int
+  provider String @db.VarChar(50)
+  model String @db.VarChar(200)
+  responseId String? @db.VarChar(200)
+  inputTokens Int?
+  outputTokens Int?
+  cachedInputTokens Int?
+  estimatedCostUsd Decimal? @db.Decimal(18, 8)
+  pricingSnapshot Json?
+  errorCode String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+}
+
+model ProjectSettings {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @unique @db.Uuid
+  width     Int      @default(1920)
+  height    Int      @default(1080)
+  fps       Int      @default(30)
+  videosPerDay Int   @default(0)
+  publicationEnabled Boolean @default(false)
+  humanValidationRequired Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProjectVoice {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  language String @db.VarChar(10)
+  voiceId String @db.VarChar(200)
+  model String @db.VarChar(200)
+  settings Json @default("{}")
+  updatedAt DateTime @updatedAt
+  @@unique([projectId, language])
+}
+
+enum AudioStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model AudioAsset {
+  id String @id @default(uuid()) @db.Uuid
+  videoJobId String @db.Uuid
+  videoJob VideoJob @relation(fields: [videoJobId], references: [id], onDelete: Restrict)
+  videoScriptId String @unique @db.Uuid
+  videoScript VideoScript @relation(fields: [videoScriptId], references: [id], onDelete: Restrict)
+  scriptVersion Int
+  provider String @db.VarChar(50)
+  language String @db.VarChar(10)
+  voiceId String @db.VarChar(200)
+  model String @db.VarChar(200)
+  voiceSettings Json
+  status AudioStatus @default(PENDING)
+  fileKey String? @unique @db.VarChar(200)
+  mimeType String? @db.VarChar(100)
+  durationSeconds Float?
+  attempts Int @default(0)
+  errorCode String? @db.VarChar(100)
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  @@index([status, id])
+}
+
+model VideoScriptSource {
+  id String @id @default(uuid()) @db.Uuid
+  videoScriptId String @unique @db.Uuid
+  videoScript VideoScript @relation(fields: [videoScriptId], references: [id], onDelete: Restrict)
+  sourceId String @db.VarChar(50)
+  origin String @db.VarChar(2048)
+  questionId String @db.VarChar(100)
+  contentHash String @db.VarChar(100)
+  snapshotHash String @db.VarChar(64)
+  language String @db.VarChar(10)
+  category String @db.VarChar(300)
+  snapshot Json
+  fetchedAt DateTime
+  checkedAt DateTime?
+  checkStatus String @default("UNCHECKED") @db.VarChar(20)
+  imageKey String? @db.VarChar(200)
+  imageHash String? @db.VarChar(64)
+  imageMimeType String? @db.VarChar(100)
+  @@index([sourceId, questionId])
+}
+
+enum QuizVideoStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+}
+
+enum QuizVideoValidationStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+// A fully automated RijPermis "quiz du jour" video (mission 10). Deliberately independent from
+// VideoJob/VideoScript: narration here is templated, not an OpenAI script, so forcing it into that
+// shape would duplicate meaning rather than data. Mirrors VideoScriptSource's traceability fields
+// (mission 7) and AudioAsset's output/usage fields (mission 5) for the parts that are genuinely analogous.
+model QuizVideo {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  requestId String   @unique @db.Uuid
+  language  String   @db.VarChar(10)
+  status    QuizVideoStatus @default(PENDING)
+  attempts  Int      @default(0)
+  errorMessage String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startedAt DateTime?
+  finishedAt DateTime?
+
+  // Source traceability, captured once at request time (mission 7 protections).
+  sourceId     String   @db.VarChar(50)
+  origin       String   @db.VarChar(2048)
+  questionId   String   @db.VarChar(100)
+  contentHash  String   @db.VarChar(100)
+  snapshotHash String   @db.VarChar(64)
+  category     String   @db.VarChar(300)
+  snapshot     Json
+  fetchedAt    DateTime
+  checkStatus  String   @default("UNCHECKED") @db.VarChar(20)
+  checkedAt    DateTime?
+  imageKey     String?  @db.VarChar(200)
+  imageHash    String?  @db.VarChar(64)
+  imageMimeType String? @db.VarChar(100)
+
+  // Voice, captured once at request time from ProjectVoice (mission 5): a later voice change does
+  // not alter an already-registered request, matching AudioAsset's own behavior.
+  voiceId       String  @db.VarChar(200)
+  ttsModel      String  @db.VarChar(200)
+  voiceSettings Json
+
+  // Render output.
+  fileKey         String?  @unique @db.VarChar(200)
+  durationSeconds Float?
+  ttsProvider     String?  @db.VarChar(50)
+  ttsUsage        Json?
+  generatedAt     DateTime?
+
+  // A generated video is never published automatically; see verifySourceBeforePublication /
+  // isPublicationBlocked (mission 7) for the check a future publication engine must call.
+  validationStatus QuizVideoValidationStatus @default(PENDING_APPROVAL)
+  reviewedAt       DateTime?
+  reviewedBy       String?  @db.VarChar(200)
+  reviewComment    String?  @db.VarChar(2000)
+
+  scheduledSlot ScheduledQuizSlot?
+  socialPublications SocialPublication[]
+  publicLinks QuizVideoPublicLink[]
+
+  @@index([projectId, createdAt])
+  @@index([status, id])
+  @@index([sourceId, questionId])
+}
+
+enum ScheduledSlotStatus {
+  PENDING
+  DISPATCHED
+  SKIPPED
+  FAILED
+}
+
+// One row per (project, calendar day, configured slot time, language): the unique constraint below
+// is the idempotency and cross-instance-safety mechanism (mission 11) — a slot can only ever be
+// claimed once, by whichever scheduler tick (or instance) commits first. Never touches rendering
+// directly; a dispatched slot only ever calls requestQuizVideo (mission 10), nothing more.
+model ScheduledQuizSlot {
+  id            String   @id @default(uuid()) @db.Uuid
+  projectId     String   @db.Uuid
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  scheduledDate DateTime @db.Date
+  slotTime      String   @db.VarChar(5)
+  language      String   @db.VarChar(10)
+  status        ScheduledSlotStatus @default(PENDING)
+  quizVideoId   String?  @unique @db.Uuid
+  quizVideo     QuizVideo? @relation(fields: [quizVideoId], references: [id], onDelete: SetNull)
+  reason        String?  @db.VarChar(500)
+  scheduledAt   DateTime
+  dispatchedAt  DateTime?
+  createdAt     DateTime @default(now())
+
+  @@unique([projectId, scheduledDate, slotTime, language])
+  @@index([scheduledDate, status])
+}
+
+enum SocialPlatform {
+  TIKTOK
+  INSTAGRAM
+  FACEBOOK
+}
+
+enum SocialConnectionStatus {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+  EXPIRED
+  INSUFFICIENT_PERMISSIONS
+  ERROR
+}
+
+// Mission 13: one row per connected destination account/page. A connection being CONNECTED is
+// deliberately NOT the same claim as "allowed to publish" — that is a derived diagnostic computed
+// on demand by @fako/publishing's getCapabilities()/validatePublicationReadiness() from
+// grantedScopes, never persisted here, so a platform's scope requirements can evolve without a
+// migration. Tokens are stored encrypted (AES-256-GCM, see @fako/publishing/crypto); this app never
+// stores them in plaintext or forwards them to a browser.
+model SocialAccount {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @db.Uuid
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  platform          SocialPlatform
+  externalAccountId String   @db.VarChar(200)
+  displayName       String?  @db.VarChar(200)
+  languages         String[] @default([])
+  status            SocialConnectionStatus @default(DISCONNECTED)
+  grantedScopes     String[] @default([])
+  connectedAt       DateTime?
+  tokenExpiresAt    DateTime?
+  refreshTokenExpiresAt DateTime?
+  lastVerifiedAt    DateTime?
+  lastError         String?  @db.VarChar(2000)
+  accessTokenCiphertext  String? @db.Text
+  refreshTokenCiphertext String? @db.Text
+  captionTemplates  Json     @default("{}")
+  metadata          Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  publications      SocialPublication[]
+
+  @@unique([projectId, platform, externalAccountId])
+  @@index([projectId, platform])
+}
+
+// Short-lived, single-use OAuth CSRF state (mission 13 section 7): created by the "start" endpoint,
+// consumed exactly once by the "callback" endpoint, and rejected once expired. codeVerifier holds
+// the PKCE verifier for platforms that require it (TikTok non-web clients); unused for Meta flows.
+model SocialOAuthState {
+  id          String   @id @default(uuid()) @db.Uuid
+  state       String   @unique @db.VarChar(128)
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platform    SocialPlatform
+  redirectUri String   @db.VarChar(2048)
+  codeVerifier String? @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  consumedAt  DateTime?
+
+  @@index([expiresAt])
+}
+
+enum SocialPublicationStatus {
+  DRAFT
+  SCHEDULED
+  READY
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+  BLOCKED
+  OUTCOME_UNKNOWN
+}
+
+enum SocialPublicationAttemptOutcome {
+  SUCCESS
+  FAILED
+  BLOCKED
+  TIMEOUT
+}
+
+// Mission 14: one row per (QuizVideo, SocialAccount) publication intent — a single approved video
+// can own several rows, one per destination, so each platform gets its own independent lifecycle,
+// retry count and remote reference. Never stores a platform token itself (those stay on
+// SocialAccount, encrypted); this model only ever references an account by id.
+//
+// DRAFT: prepared (video + destination + caption) but no scheduledAt committed yet.
+// SCHEDULED: scheduledAt committed, waiting for its time (apps/scheduler promotes it to READY).
+// READY: due, waiting to be claimed and sent (or retried after a transient failure).
+// PUBLISHING: a send attempt is in flight — the crash-recovery sentinel; claiming a row already in
+//   this state (a previous attempt never reached a terminal outcome) moves it to OUTCOME_UNKNOWN
+//   rather than silently retrying, exactly like QuizVideo's PROCESSING handling (mission 10).
+// PUBLISHED / FAILED / CANCELLED / BLOCKED / OUTCOME_UNKNOWN: terminal (OUTCOME_UNKNOWN only until
+//   reconciled against the platform's own status, at which point it resolves to PUBLISHED/FAILED).
+model SocialPublication {
+  id              String   @id @default(uuid()) @db.Uuid
+  projectId       String   @db.Uuid
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  requestId       String   @unique @db.Uuid
+  quizVideoId     String   @db.Uuid
+  quizVideo       QuizVideo @relation(fields: [quizVideoId], references: [id], onDelete: Restrict)
+  socialAccountId String   @db.Uuid
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Restrict)
+  platform        SocialPlatform
+  language        String   @db.VarChar(10)
+  caption         String   @db.VarChar(2200)
+  hashtags        String[] @default([])
+  status          SocialPublicationStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  attempts        Int      @default(0)
+  nextAttemptAt   DateTime?
+  lastAttemptAt   DateTime?
+  remotePostId    String?  @db.VarChar(200)
+  remoteUrl       String?  @db.VarChar(2048)
+  lastError       String?  @db.VarChar(2000)
+  createdBy       String   @db.VarChar(200)
+  cancelledAt     DateTime?
+  cancelledBy     String?  @db.VarChar(200)
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  attemptHistory  SocialPublicationAttempt[]
+
+  @@index([projectId, status])
+  @@index([quizVideoId])
+  @@index([socialAccountId, status])
+  @@index([status, scheduledAt])
+  @@index([status, nextAttemptAt])
+}
+
+// One row per send attempt — the "historique des tentatives" mission 14 section 2 requires as its
+// own auditable trail, separate from the summary counters (attempts/lastError) on the parent row.
+model SocialPublicationAttempt {
+  id            String   @id @default(uuid()) @db.Uuid
+  publicationId String   @db.Uuid
+  publication   SocialPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  outcome       SocialPublicationAttemptOutcome?
+  remoteStatus  String?  @db.VarChar(100)
+  errorCode     String?  @db.VarChar(100)
+  errorMessage  String?  @db.VarChar(2000)
+
+  @@index([publicationId])
+}
+
+// Mission 15 section 4: Instagram's Content Publishing API requires a public HTTPS `video_url` it
+// fetches the MP4 from itself — unlike TikTok/Facebook, which accept a direct authenticated upload.
+// This is the ONLY way a QuizVideo's bytes are ever reachable without the admin Bearer token: the
+// raw token lives only in the URL (never stored — only its hash, so a DB leak alone never yields a
+// usable link), is scoped to exactly one QuizVideo, expires quickly, and is revoked as soon as the
+// engine knows Meta either fetched it or will never need to (see revokePublicVideoLink call sites).
+model QuizVideoPublicLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  quizVideoId String    @db.Uuid
+  quizVideo   QuizVideo @relation(fields: [quizVideoId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique @db.VarChar(64)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  revokedAt   DateTime?
+
+  @@index([quizVideoId])
+  @@index([expiresAt])
+}
