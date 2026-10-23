@@ -76,7 +76,9 @@ COPY --from=build /app/packages/video-jobs/dist ./packages/video-jobs/dist
 COPY --from=build /app/packages/video-templates/package.json ./packages/video-templates/package.json
 COPY --from=build /app/packages/video-templates/dist ./packages/video-templates/dist
 COPY --from=build /app/packages/video-templates/public ./packages/video-templates/public
-RUN mkdir -p /app/storage/audio /app/storage/quiz-videos && chown -R node:node /app/storage
+# The worker (running as node, not root) stages narration audio into this directory before each
+# Remotion render — confirmed EACCES at runtime without this chown (mission 16 functional test).
+RUN mkdir -p /app/storage/audio /app/storage/quiz-videos && chown -R node:node /app/storage /app/packages/video-templates/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/api/dist/server.js"]

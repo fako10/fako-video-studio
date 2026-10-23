@@ -32,10 +32,15 @@ COMPOSE_PROJECT="${FAKO_COMPOSE_PROJECT:-fako-production}"
 for volume in audio_data quiz_video_data rijpermis_media_data; do
     archive="backups/fako-${volume}-${STAMP}.tar.gz"
     LOG "starting ${volume} volume archive -> ${archive}"
+    # chown+chmod happen inside the container (still root there, so it may set ownership to any
+    # host UID) — the host's fako user never owns this file otherwise (created by the container's
+    # root, UID 0 on the host too) and so could not fix it up itself. Without this, the archive
+    # lands root-owned and world-readable (022 umask) regardless of this script's own `umask 077`,
+    # which only governs the host bash process — found during mission 16's real backup test.
     docker run --rm \
         -v "${COMPOSE_PROJECT}_${volume}:/data:ro" \
         -v "$(pwd)/backups:/backup" \
-        alpine:3 sh -c "tar czf /backup/$(basename "$archive") -C /data ."
+        alpine:3 sh -c "tar czf /backup/$(basename "$archive") -C /data . && chown $(id -u):$(id -g) /backup/$(basename "$archive") && chmod 600 /backup/$(basename "$archive")"
     if [ ! -s "$archive" ]; then
         LOG "FAILED: ${archive} is empty"
         rm -f "$archive"
