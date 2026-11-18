@@ -5,7 +5,7 @@
 // infrastructure/docker/README.md's "Rotation des clés" section for the full procedure.
 //
 // Never logs a token value, plaintext or ciphertext — only account ids and outcome counts.
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { decryptSecret, DecryptionError, encryptSecret, loadEncryptionKeyFromEnv, loadPreviousEncryptionKeyFromEnv } from '@fako/publishing';
 
 const currentKey = loadEncryptionKeyFromEnv(process.env);
@@ -16,7 +16,7 @@ if (!previousKey) {
     process.exit(1);
 }
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 let reencrypted = 0, alreadyCurrent = 0, skipped = 0;
 try {
     const accounts = await prisma.socialAccount.findMany({

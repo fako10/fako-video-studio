@@ -17,28 +17,31 @@ Le scheduler quotidien et la rotation des questions (Mission 11) sont décrits d
 L'interface d'administration et de validation des vidéos (Mission 12) est décrite dans
 [docs/rijpermis-admin.md](docs/rijpermis-admin.md).
 
-Monorepo npm (`apps/*`, `packages/*`). L'API existante utilise Fastify 5,
-TypeScript ESM et le port 3000. Node.js >= 22 et Docker Compose sont requis.
+Monorepo npm (`apps/*`, `packages/*`). L'API utilise Fastify 5, TypeScript ESM
+et le port 3000. Node.js >= 22.12 et PostgreSQL >= 16 sont requis. **Docker et
+Redis ne sont plus utilisés** : la file de tâches (`packages/jobs`, basée sur
+pg-boss) est stockée dans PostgreSQL, schéma `pgboss`, et le client Prisma
+fonctionne sans moteur natif (`packages/db`, adaptateur `pg`).
 
 ## Démarrage local (PowerShell, depuis la racine)
+
+PostgreSQL doit être installé localement, avec une base `fako` et un
+utilisateur dédié (par exemple via pgAdmin).
 
 ```powershell
 npm.cmd ci
 Copy-Item .env.example .env
 Copy-Item apps/api/.env.example apps/api/.env
-# Choisir un mot de passe local dans .env et adapter DATABASE_URL dans apps/api/.env.
-docker compose up -d --wait
+Copy-Item apps/worker/.env.example apps/worker/.env
+# Adapter DATABASE_URL dans chaque fichier .env (hôte 127.0.0.1, port 5432 par défaut).
 npm.cmd run db:migrate --workspace=@fako/api
 npm.cmd run build
 npm.cmd run dev:api
 ```
 
 Les fichiers `.env` sont ignorés par Git. Les exemples contiennent uniquement
-des valeurs de remplacement. PostgreSQL est exposé sur l'interface locale ;
-ses données restent dans le volume `postgres_data`. `docker compose stop`
-arrête la base sans supprimer les données. Aucun déploiement VPS n'est prévu.
-Le port local par défaut est `5433` (PostgreSQL utilise `5432` dans Docker).
-Dans pgAdmin installé sur Windows, utiliser l'hôte `127.0.0.1` et le port `5433`.
+des valeurs de remplacement. Le déploiement sur le VPS (systemd + Nginx, sans
+Docker) est préparé dans `infrastructure/vps/`.
 
 ## API
 

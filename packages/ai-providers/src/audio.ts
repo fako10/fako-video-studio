@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { UnrecoverableError } from 'bullmq';
+import { UnrecoverableError } from '@fako/jobs';
 import { parseBuffer } from 'music-metadata';
 import { TTSError, type TTSProvider, type VoiceSettings } from './tts.js';
 import type { AudioStorage } from './storage.js';

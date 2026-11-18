@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { seedRijPermis } from '../src/seed.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 try {
     const project = await seedRijPermis(prisma);
     console.log(`Projet disponible : ${project.name} (${project.slug}), UUID ${project.id}`);

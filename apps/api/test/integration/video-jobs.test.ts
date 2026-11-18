@@ -1,16 +1,16 @@
 import { test } from 'node:test';
 import './_test-env.js';
 import assert from 'node:assert/strict';
-import { PrismaClient } from '@prisma/client';
-import { Worker } from 'bullmq';
-import { createVideoQueue, dispatchPending, queueName, redisConnection, simulateVideoJob } from '@fako/video-jobs';
+import { createPrismaClient } from '@fako/db';
+import { Worker } from '@fako/jobs';
+import { createVideoQueue, dispatchPending, queueName, simulateVideoJob } from '@fako/video-jobs';
 import { buildApp } from '../../src/app.js';
 
 const TOKEN = 'test-video-jobs-integration-token-1234567890';
 const headers = { authorization: `Bearer ${TOKEN}` };
 
 test('video job routes, project isolation, approval, cancellation, failures and retries', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, videoJobsToken: TOKEN, projectsToken: TOKEN });
     const project = await prisma.project.create({ data: { name: 'Job tests', languages: ['fr', 'nl'], settings: { create: { width: 1080, height: 1920, fps: 30 } } } });
     const other = await prisma.project.create({ data: { name: 'Other job tests' } });
@@ -85,28 +85,27 @@ test('video job routes, project isolation, approval, cancellation, failures and 
     }
 });
 
-test('BullMQ dispatch is recoverable and deduplicated; failed attempts retry then await approval', async () => {
-    assert.ok(process.env.REDIS_URL, 'REDIS_URL must target an isolated test Redis');
-    const prisma = new PrismaClient();
+test('Queue dispatch is recoverable and deduplicated; failed attempts retry then await approval', async () => {
+    const prisma = createPrismaClient();
     const queue = createVideoQueue();
-    const project = await prisma.project.create({ data: { name: 'BullMQ integration' } });
+    const project = await prisma.project.create({ data: { name: 'Queue integration' } });
     const job = await prisma.videoJob.create({ data: { projectId: project.id, subject: 'Queue test', language: 'fr', width: 1080, height: 1920, fps: 30 } });
     let worker: Worker | undefined;
     try {
         await assert.rejects(dispatchPending(prisma, {
             getJob: async () => undefined,
-            add: async () => { throw new Error('Redis temporarily offline'); }
+            add: async () => { throw new Error('Queue temporarily offline'); }
         }));
         assert.equal((await prisma.videoJob.findUniqueOrThrow({ where: { id: job.id } })).status, 'QUEUED');
         await dispatchPending(prisma, queue);
         await dispatchPending(prisma, queue);
-        assert.equal((await queue.getJobs(['waiting'])).filter(item => item.id === job.id).length, 1);
+        assert.equal(await (await queue.getJob(job.id))?.getState(), 'created');
         worker = new Worker(queueName, async item => {
             await simulateVideoJob(prisma, item.data.videoJobId, {
                 attempt: item.attemptsMade + 1, maxAttempts: item.opts.attempts ?? 3, stepDelayMs: 1,
                 step: async () => { if (item.attemptsMade === 0) throw new Error('Transient error'); }
             });
-        }, { connection: redisConnection() });
+        }, { pollingIntervalSeconds: 0.5 });
         const deadline = Date.now() + 15000;
         let result = await prisma.videoJob.findUniqueOrThrow({ where: { id: job.id } });
         while (result.status !== 'WAITING_APPROVAL' && Date.now() < deadline) {
@@ -120,8 +119,6 @@ test('BullMQ dispatch is recoverable and deduplicated; failed attempts retry the
         assert.equal(result.approvedAt, null);
     } finally {
         await worker?.close();
-        const queued = await queue.getJob(job.id);
-        await queued?.remove();
         await queue.close();
         await prisma.videoJob.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });

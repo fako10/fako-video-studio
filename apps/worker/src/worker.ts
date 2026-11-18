@@ -1,7 +1,7 @@
 import { startAudioWorker } from './audio-worker.js';
-import { PrismaClient } from '@prisma/client';
-import { Worker } from 'bullmq';
-import { createVideoQueue, dispatchPending, queueName, redisConnection, simulateVideoJob } from '@fako/video-jobs';
+import { createPrismaClient } from '@fako/db';
+import { closeJobs, Worker } from '@fako/jobs';
+import { createVideoQueue, dispatchPending, queueName, simulateVideoJob } from '@fako/video-jobs';
 import { logger } from './logger.js';
 import { startScriptWorker } from './script-worker.js';
 import { startQuizVideoWorker } from './quiz-video-worker.js';
@@ -13,7 +13,7 @@ function positiveInteger(name: string, fallback: number) {
     return value;
 }
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 const scriptWorker = startScriptWorker(prisma);
 const audioWorker = startAudioWorker(prisma);
 const quizVideoWorker = startQuizVideoWorker(prisma);
@@ -24,7 +24,7 @@ const worker = new Worker<{ videoJobId: string }>(queueName, async job => {
         attempt: job.attemptsMade + 1, maxAttempts: job.opts.attempts ?? 3,
         stepDelayMs: positiveInteger('SIMULATION_STEP_MS', 300)
     });
-}, { connection: redisConnection(), concurrency: positiveInteger('WORKER_CONCURRENCY', 2) });
+}, { concurrency: positiveInteger('WORKER_CONCURRENCY', 2) });
 
 // Do not log connection objects or job payloads, which may contain private data.
 worker.on('error', error => logger.error({ queue: queueName, err: error.message }, 'Worker connection or processing error'));
@@ -63,6 +63,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
         await audioWorker.close();
         await quizVideoWorker.close();
         await socialPublicationWorker.close();
+        await closeJobs();
         await prisma.$disconnect();
     });
 }

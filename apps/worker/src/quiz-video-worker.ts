@@ -1,9 +1,8 @@
 import { resolve } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
-import { Worker } from 'bullmq';
+import { Worker } from '@fako/jobs';
 import { ElevenLabsProvider, CachingTTSProvider, LocalAudioCacheStore, MockTTSProvider, type TTSProvider } from '@fako/ai-providers';
 import { createQuizVideoQueue, dispatchQuizVideos, generateQuizVideo, quizVideoQueueName, type QuizVideoDeps } from '@fako/quiz-pipeline';
-import { redisConnection } from '@fako/video-jobs';
 import { LocalVideoStorage, defaultPublicDir } from '@fako/media-engine';
 import { logger } from './logger.js';
 
@@ -39,7 +38,7 @@ export function startQuizVideoWorker(prisma: PrismaClient) {
     const queue = createQuizVideoQueue();
     const worker = new Worker<{ quizVideoId: string }>(quizVideoQueueName, job => generateQuizVideo(prisma, job.data.quizVideoId, deps, {
         attempt: job.attemptsMade + 1, maxAttempts: job.opts.attempts ?? 3
-    }), { connection: redisConnection(), concurrency });
+    }), { concurrency });
 
     worker.on('error', error => logger.error({ queue: quizVideoQueueName, err: error.message }, 'Quiz video worker connection error'));
     queue.on('error', error => logger.error({ queue: quizVideoQueueName, err: error.message }, 'Quiz video queue connection error'));

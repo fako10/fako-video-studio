@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { Worker } from 'bullmq';
-import { createScriptQueue, dispatchScripts, generateVideoScript, OpenAIProvider, redisConnection, scriptQueueName, type Pricing } from '@fako/video-jobs';
+import { Worker } from '@fako/jobs';
+import { createScriptQueue, dispatchScripts, generateVideoScript, OpenAIProvider, scriptQueueName, type Pricing } from '@fako/video-jobs';
 import { logger } from './logger.js';
 
 export function startScriptWorker(prisma: PrismaClient) {
@@ -24,7 +24,7 @@ export function startScriptWorker(prisma: PrismaClient) {
     const queue = createScriptQueue();
     const worker = new Worker<{ scriptId: string }>(scriptQueueName, job => generateVideoScript(prisma, job.data.scriptId, provider, {
         attempt: job.attemptsMade + 1, maxAttempts: job.opts.attempts ?? 3, pricing
-    }), { connection: redisConnection(), concurrency: 1 });
+    }), { concurrency: 1 });
     worker.on('error', error => logger.error({ queue: scriptQueueName, err: error.message }, 'Script worker connection error'));
     worker.on('failed', (job, error) => logger.warn({ queue: scriptQueueName, jobId: job?.id, scriptId: job?.data.scriptId, attemptsMade: job?.attemptsMade, err: error?.message }, 'Script generation attempt failed; see persisted error code'));
     queue.on('error', error => logger.error({ queue: scriptQueueName, err: error.message }, 'Script queue connection error'));

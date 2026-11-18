@@ -3,6 +3,7 @@ import './_test-env.js';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { mockConnectors } from '@fako/publishing';
 import { buildApp } from '../../src/app.js';
 
@@ -28,7 +29,7 @@ async function cleanupProjects(prisma: PrismaClient, projectIds: string[]) {
 }
 
 test('full OAuth lifecycle: start, callback, list, capabilities, patch languages, disconnect', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma);
     let project: { id: string } | undefined;
     try {
@@ -66,7 +67,7 @@ test('full OAuth lifecycle: start, callback, list, capabilities, patch languages
 });
 
 test('an account connected with only basic scopes is marked INSUFFICIENT_PERMISSIONS, not CONNECTED', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma, 'INSUFFICIENT_SCOPES');
     let project: { id: string } | undefined;
     try {
@@ -83,7 +84,7 @@ test('an account connected with only basic scopes is marked INSUFFICIENT_PERMISS
 });
 
 test('OAuth state CSRF protections: unknown, cross-platform, expired, and replayed states are all rejected', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma);
     let project: { id: string } | undefined;
     let otherProject: { id: string } | undefined;
@@ -114,7 +115,7 @@ test('OAuth state CSRF protections: unknown, cross-platform, expired, and replay
 });
 
 test('social accounts are isolated between projects', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma);
     let projectA: { id: string } | undefined;
     let projectB: { id: string } | undefined;
@@ -134,7 +135,7 @@ test('social accounts are isolated between projects', async () => {
 });
 
 test('multiple accounts per platform are supported (FR and NL destinations)', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma);
     let project: { id: string } | undefined;
     try {
@@ -158,7 +159,7 @@ test('multiple accounts per platform are supported (FR and NL destinations)', as
 });
 
 test('connecting a Facebook Page never requires or exposes a personal profile token', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildTestApp(prisma);
     let project: { id: string } | undefined;
     try {
@@ -173,7 +174,7 @@ test('connecting a Facebook Page never requires or exposes a personal profile to
 });
 
 test('a platform the admin never developer-configured refuses to start an OAuth flow (503), not a silent mock success', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, socialAccountsEnabled: true, socialAccountsToken: TOKEN, socialEncryptionKey: randomBytes(32) });
     let project: { id: string } | undefined;
     try {

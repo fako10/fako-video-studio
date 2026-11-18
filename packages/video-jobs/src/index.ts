@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq';
+import { Queue } from '@fako/jobs';
 import type { PrismaClient, VideoJobStatus } from '@prisma/client';
 export * from './ai.js';
 export * from './editorial.js';
@@ -9,27 +9,13 @@ export const queueName = 'video-production';
 export const activeStatuses: VideoJobStatus[] = ['PENDING', 'QUEUED', 'PROCESSING'];
 export const cancellableStatuses: VideoJobStatus[] = [...activeStatuses, 'WAITING_APPROVAL'];
 
-export function redisConnection(value = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379') {
-    const url = new URL(value);
-    if (!['redis:', 'rediss:'].includes(url.protocol)) throw new Error('Invalid Redis URL protocol');
-    return {
-        host: url.hostname, port: Number(url.port || 6379),
-        username: url.username ? decodeURIComponent(url.username) : undefined,
-        password: url.password ? decodeURIComponent(url.password) : undefined,
-        db: Number(url.pathname.slice(1) || 0),
-        ...(url.protocol === 'rediss:' ? { tls: {} } : {}),
-        maxRetriesPerRequest: null
-    };
-}
-
 export function createVideoQueue() {
     return new Queue<{ videoJobId: string }>(queueName, {
-        connection: redisConnection(),
         defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 1000 } }
     });
 }
 
-// Database rows act as a durable outbox. Redis can be offline when the API creates a job.
+// Database rows act as a durable outbox: the queue only triggers processing of rows already persisted.
 export async function dispatchPending(prisma: PrismaClient, queue: Pick<ReturnType<typeof createVideoQueue>, 'add' | 'getJob'>) {
     let cursor: string | undefined;
     for (;;) {

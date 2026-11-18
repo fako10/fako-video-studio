@@ -6,6 +6,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { MockTTSProvider } from '@fako/ai-providers';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion } from '@fako/content-sources';
 import { LocalVideoStorage } from '@fako/media-engine';
@@ -53,7 +54,7 @@ async function approvedQuizVideo(prisma: PrismaClient, dirs: Awaited<ReturnType<
 }
 
 test('a fake Meta client can fetch exactly the linked video, unauthenticated, and nothing else', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, quizVideoStorage: dirs.videoStorage });
     const project = await setupProject(prisma, 'Public link happy path');
@@ -92,7 +93,7 @@ test('a fake Meta client can fetch exactly the linked video, unauthenticated, an
 });
 
 test('unknown, malformed, expired and revoked tokens all return the same generic 404; the feature flag gates the whole route', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, quizVideoStorage: dirs.videoStorage });
     const project = await setupProject(prisma, 'Public link rejections');
@@ -142,7 +143,7 @@ test('unknown, malformed, expired and revoked tokens all return the same generic
 });
 
 test('the publication engine mints an Instagram-only public link, passes it to the connector, and revokes it once terminal', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const encryptionKey = randomBytes(32);
     const app = buildApp({ prisma, socialAccountsEnabled: true, socialAccountsToken: TOKEN, socialEncryptionKey: encryptionKey, socialConnectors: mockConnectors(), socialPublishingEnabled: true, socialPublishingToken: TOKEN, quizVideoEnabled: true, quizVideoToken: TOKEN, quizVideoStorage: dirs.videoStorage });

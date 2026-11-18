@@ -8,7 +8,7 @@
 // validation as every other storage access in this repo. A missing file is already handled gracefully
 // everywhere it's read (404, not a crash — see apps/api/src/routes/quiz-videos.ts).
 import { resolve } from 'node:path';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { LocalVideoStorage } from '@fako/media-engine';
 
 const confirm = process.argv.includes('--confirm');
@@ -17,7 +17,7 @@ if (!Number.isSafeInteger(retentionDays) || retentionDays < 1) throw new Error('
 const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
 const storage = new LocalVideoStorage(process.env.QUIZ_VIDEO_STORAGE_ROOT || resolve(import.meta.dirname, '../../../storage/quiz-videos'));
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 const ACTIVE_OR_UNRESOLVED = ['DRAFT', 'SCHEDULED', 'READY', 'PUBLISHING', 'OUTCOME_UNKNOWN'] as const;
 
 let eligible = 0, deleted = 0, failed = 0;

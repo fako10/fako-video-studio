@@ -1,4 +1,4 @@
-import { UnrecoverableError } from 'bullmq';
+import { UnrecoverableError } from '@fako/jobs';
 import type { PrismaClient, SocialPublication, SocialPublicationAttemptOutcome } from '@prisma/client';
 import type { PublishVideoResult } from '@fako/publishing';
 import { verifyBeforeSend } from './verify.js';

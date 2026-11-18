@@ -1,6 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../../../node_modules/.prisma/client"
+  provider   = "prisma-client-js"
+  output     = "../../../node_modules/.prisma/client"
+  // Client sans moteur natif : les requêtes passent par @prisma/adapter-pg (voir packages/db).
+  engineType = "client"
 }
 
 datasource db {

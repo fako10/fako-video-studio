@@ -6,6 +6,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { getVideoMetadata } from '@remotion/renderer';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion } from '@fako/content-sources';
 import { CachingTTSProvider, LocalAudioCacheStore, MockTTSProvider, TTSError, type TTSProvider } from '@fako/ai-providers';
@@ -42,7 +43,7 @@ function deps(overrides: Partial<QuizVideoDeps> & Pick<QuizVideoDeps, 'videoStor
 }
 
 test('FR success end to end: creation, idempotency, generation, preview, no auto-publication, review', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -95,7 +96,7 @@ test('FR success end to end: creation, idempotency, generation, preview, no auto
 });
 
 test('rejects creation when the project has no voice configured for the language', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -113,7 +114,7 @@ test('rejects creation when the project has no voice configured for the language
 });
 
 test('no eligible question available for the language is reported clearly, not silently', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -133,7 +134,7 @@ test('no eligible question available for the language is reported clearly, not s
 });
 
 test('an explicit questionId the API refuses to export is never used', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -160,7 +161,7 @@ async function createPendingQuizVideo(prisma: PrismaClient, dirs: Awaited<Return
 }
 
 test('a non-retryable TTS failure fails the job without retrying, and a retryable one retries then can succeed', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const project = await prisma.project.create({ data: { name: 'TTS failures', languages: ['fr'] } });
@@ -194,7 +195,7 @@ test('a non-retryable TTS failure fails the job without retrying, and a retryabl
 });
 
 test('a render crash fails the job without retrying (not a TTS error) and never leaves a half-written file referenced', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const project = await prisma.project.create({ data: { name: 'Render failure', languages: ['fr'] } });
@@ -215,7 +216,7 @@ test('a render crash fails the job without retrying (not a TTS error) and never 
 });
 
 test('a crash left PROCESSING is never silently retried, to avoid risking a second paid TTS call', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const project = await prisma.project.create({ data: { name: 'Outcome unknown', languages: ['fr'] } });
@@ -239,7 +240,7 @@ test('a crash left PROCESSING is never silently retried, to avoid risking a seco
 });
 
 test('identical narration text, voice and settings across two quiz videos reuses the cache instead of paying twice', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const cacheDir = await mkdtemp(join(tmpdir(), 'fako-qv-cache-'));
     const provider = new MockContentSourceProvider([mockQuestion]);
@@ -269,7 +270,7 @@ test('identical narration text, voice and settings across two quiz videos reuses
 });
 
 test('each project only ever sees its own quiz video files; a foreign or unknown id is never served', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -285,7 +286,7 @@ test('each project only ever sees its own quiz video files; a foreign or unknown
 });
 
 test('disabled by default: creation is refused without configuration', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const app = buildApp({ prisma });
     try {
@@ -298,7 +299,7 @@ test('disabled by default: creation is refused without configuration', async () 
 });
 
 test('the outbox dispatcher enqueues pending rows exactly once and reconciles exhausted queue failures', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const project = await prisma.project.create({ data: { name: 'Dispatch', languages: ['fr'] } });
@@ -323,7 +324,7 @@ test('the outbox dispatcher enqueues pending rows exactly once and reconciles ex
 
 test('full real pipeline: PostgreSQL, Redis-backed queue and an actual Remotion MP4 render',
     { skip: !RUN_REAL_RENDER && 'set MEDIA_ENGINE_RENDER_TESTS=true to run (downloads headless Chrome on first use)' }, async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });
@@ -368,7 +369,7 @@ test('full real pipeline: PostgreSQL, Redis-backed queue and an actual Remotion 
 });
 
 test('lists quiz videos filtered by language, status and day, with pagination', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion, { ...mockQuestion, id: 'mock-nl', language: 'nl' }]);
     const app = buildApp({ prisma, quizVideoEnabled: true, quizVideoToken: TOKEN, rijPermisProvider: provider, rijPermisStorage: dirs.mediaStorage, quizVideoStorage: dirs.videoStorage });

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { computeDueSlots, getQuestionUsageStats, selectRijPermisQuestion } from '@fako/quiz-pipeline';
 import { loadProviderAndStorage, loadSchedulerConfig, projectSlug } from './config.js';
 
@@ -8,7 +8,7 @@ const config = loadSchedulerConfig();
 const { provider } = loadProviderAndStorage();
 if (!provider) throw new Error('No RijPermis content source is configured (RIJPERMIS_API_ENABLED / RIJPERMIS_MOCK_MODE)');
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 try {
     const project = await prisma.project.findUnique({ where: { slug: projectSlug } });
     if (!project) throw new Error(`Project with slug "${projectSlug}" not found; run db:seed first`);

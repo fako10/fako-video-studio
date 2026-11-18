@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import './_test-env.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
-import { UnrecoverableError, Worker } from 'bullmq';
+import { createPrismaClient } from '@fako/db';
+import { UnrecoverableError, Worker } from '@fako/jobs';
 import {
-    AIProviderError, createScriptQueue, dispatchScripts, generateVideoScript, redisConnection, rijPermisEditorial,
+    AIProviderError, createScriptQueue, dispatchScripts, generateVideoScript, rijPermisEditorial,
     scriptQueueName, simulateVideoJob, type AIProvider, type ScriptInput
 } from '@fako/video-jobs';
 import { buildApp } from '../../src/app.js';
@@ -23,7 +23,7 @@ function fakeContent(input: ScriptInput) {
 }
 
 test('script outbox, fake AI, idempotency, languages, usage, version approval and cancellation', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, scriptGenerationEnabled: true, videoScriptsToken: TOKEN, videoJobsToken: TOKEN });
     const project = await prisma.project.create({ data: { name: 'Script tests', languages: ['fr', 'nl'], ...rijPermisEditorial } });
     const job = await prisma.videoJob.create({ data: { projectId: project.id, subject: 'Examen quotidien en groupe', language: 'fr', width: 1080, height: 1920, fps: 30 } });
@@ -53,7 +53,7 @@ test('script outbox, fake AI, idempotency, languages, usage, version approval an
         await dispatchScripts(prisma, queue);
         worker = new Worker(scriptQueueName, item => generateVideoScript(prisma, item.data.scriptId, provider, {
             attempt: item.attemptsMade + 1, maxAttempts: 3, pricing: { model: 'test-model', inputPerMillion: 1, outputPerMillion: 2 }
-        }), { connection: redisConnection() });
+        }), { pollingIntervalSeconds: 0.5 });
         const deadline = Date.now() + 10000;
         let generated = await prisma.videoScript.findUniqueOrThrow({ where: { id: script.id } });
         while (generated.generationStatus !== 'GENERATED' && Date.now() < deadline) {
@@ -110,7 +110,7 @@ test('script outbox, fake AI, idempotency, languages, usage, version approval an
 });
 
 test('AI retries only transient failures and persists usage even for invalid output', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, scriptGenerationEnabled: true, videoScriptsToken: TOKEN });
     const project = await prisma.project.create({ data: { name: 'AI failures', ...rijPermisEditorial } });
     const job = await prisma.videoJob.create({ data: { projectId: project.id, subject: 'Daily group exam', language: 'fr', width: 1080, height: 1920, fps: 30 } });

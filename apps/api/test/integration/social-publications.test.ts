@@ -6,6 +6,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { MockTTSProvider } from '@fako/ai-providers';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion } from '@fako/content-sources';
 import { LocalVideoStorage } from '@fako/media-engine';
@@ -84,7 +85,7 @@ async function setupProject(prisma: PrismaClient, name: string) {
 }
 
 test('full success lifecycle: schedule via HTTP (DST-safe local time), due, verified live, sent, published', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -149,7 +150,7 @@ test('full success lifecycle: schedule via HTTP (DST-safe local time), due, veri
 });
 
 test('scheduling is refused outright for an unapproved or ungenerated video — no DRAFT loophole', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -168,7 +169,7 @@ test('scheduling is refused outright for an unapproved or ungenerated video — 
 });
 
 test('a live RijPermis check that finds the question withdrawn blocks the send, with no automatic retry', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -192,7 +193,7 @@ test('a live RijPermis check that finds the question withdrawn blocks the send, 
 });
 
 test('insufficient permissions blocks with a clear diagnostic (missing publish scope)', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -214,7 +215,7 @@ test('insufficient permissions blocks with a clear diagnostic (missing publish s
 });
 
 test('a language revoked from the account after scheduling blocks the send at verification time', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -237,7 +238,7 @@ test('a language revoked from the account after scheduling blocks the send at ve
 });
 
 test('a confirmed platform rejection retries once (retryable) then fails terminally once attempts are exhausted', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -261,7 +262,7 @@ test('a confirmed platform rejection retries once (retryable) then fails termina
 });
 
 test('an ambiguous send (thrown exception) never resolves to FAILED or PUBLISHED — only OUTCOME_UNKNOWN, and is never auto-retried', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -288,7 +289,7 @@ test('an ambiguous send (thrown exception) never resolves to FAILED or PUBLISHED
 });
 
 test('a crash before any platform acknowledgment is reconciled to OUTCOME_UNKNOWN, never silently resent', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -308,7 +309,7 @@ test('a crash before any platform acknowledgment is reconciled to OUTCOME_UNKNOW
 });
 
 test('an acknowledged async publish (PENDING) is resolved to PUBLISHED by reconciliation, not by a blind resend', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -334,7 +335,7 @@ test('an acknowledged async publish (PENDING) is resolved to PUBLISHED by reconc
 });
 
 test('cancel is only ever accepted before a publication has started, and retry only from BLOCKED/FAILED', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -363,7 +364,7 @@ test('cancel is only ever accepted before a publication has started, and retry o
 });
 
 test('updating the schedule only works before a publication is due, and reuses the DST-safe conversion', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -387,7 +388,7 @@ test('updating the schedule only works before a publication is due, and reuses t
 });
 
 test('the scheduler tick never promotes more than maxInFlight at once, bounding job accumulation', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -409,7 +410,7 @@ test('the scheduler tick never promotes more than maxInFlight at once, bounding 
 });
 
 test('dispatch enqueues exactly one BullMQ job per READY row, idempotently, on the documented queue', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const dirs = await tempDirs();
     const provider = new MockContentSourceProvider([mockQuestion]);
     const encryptionKey = randomBytes(32);
@@ -442,7 +443,7 @@ test('dispatch enqueues exactly one BullMQ job per READY row, idempotently, on t
 // async path (TikTok's own mock is immediate SUCCESS instead, matching its real upload-then-done flow).
 test('a mock publication succeeds end to end on every platform (TikTok, Instagram, Facebook)', async () => {
     for (const platform of ['TIKTOK', 'INSTAGRAM', 'FACEBOOK'] as const) {
-        const prisma = new PrismaClient();
+        const prisma = createPrismaClient();
         const dirs = await tempDirs();
         const provider = new MockContentSourceProvider([mockQuestion]);
         const encryptionKey = randomBytes(32);

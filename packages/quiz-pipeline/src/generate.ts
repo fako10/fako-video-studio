@@ -2,12 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Queue, UnrecoverableError } from 'bullmq';
+import { Queue, UnrecoverableError } from '@fako/jobs';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { getVideoMetadata } from '@remotion/renderer';
 import type { SourceQuestion } from '@fako/content-sources';
 import { MeteringTTSProvider, TTSError, type TTSProvider } from '@fako/ai-providers';
-import { redisConnection } from '@fako/video-jobs';
 import { attachNarration, buildQuizVideoProps, type QuizVideoProps } from '@fako/video-templates';
 import { renderQuizVideo, stageImage, synthesizeQuizNarration, type VideoStorage, type VoiceConfig, type VoicesByLanguage } from '@fako/media-engine';
 
@@ -15,7 +14,8 @@ export const quizVideoQueueName = 'quiz-videos';
 
 export function createQuizVideoQueue() {
     return new Queue<{ quizVideoId: string }>(quizVideoQueueName, {
-        connection: redisConnection(), defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
+        // Un rendu long (vidéo hebdomadaire) peut durer bien plus que l'expiration par défaut d'1 h.
+        defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, expireInSeconds: 4 * 3600 }
     });
 }
 

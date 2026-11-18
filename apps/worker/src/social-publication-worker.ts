@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
-import { Worker } from 'bullmq';
+import { Worker } from '@fako/jobs';
 import { contentSourceFromEnv } from '@fako/content-sources';
 import { LocalVideoStorage } from '@fako/media-engine';
 import { loadEncryptionKeyFromEnv, loadPreviousEncryptionKeyFromEnv, socialConnectorsFromEnv, type SocialPlatform } from '@fako/publishing';
@@ -8,7 +8,6 @@ import {
     createSocialPublicationQueue, dispatchSocialPublications, reconcileInFlightPublications, runPublicationAttempt,
     socialPublicationQueueName, type PublicationEngineDeps
 } from '@fako/social-publishing';
-import { redisConnection } from '@fako/video-jobs';
 import { logger } from './logger.js';
 
 function positiveInteger(name: string, fallback: number): number {
@@ -59,7 +58,7 @@ export function startSocialPublicationWorker(prisma: PrismaClient) {
     const queue = createSocialPublicationQueue();
     const worker = new Worker<{ publicationId: string }>(socialPublicationQueueName, job => runPublicationAttempt(prisma, job.data.publicationId, deps, {
         attempt: job.attemptsMade + 1, maxAttempts: job.opts.attempts ?? 5
-    }), { connection: redisConnection(), concurrency });
+    }), { concurrency });
 
     worker.on('error', error => logger.error({ queue: socialPublicationQueueName, err: error.message }, 'Social publication worker connection error'));
     queue.on('error', error => logger.error({ queue: socialPublicationQueueName, err: error.message }, 'Social publication queue connection error'));

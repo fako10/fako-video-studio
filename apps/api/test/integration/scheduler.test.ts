@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion, type SourceQuestion } from '@fako/content-sources';
 import { runSchedulerTick, zonedTimeToUtc, type SchedulerConfig } from '@fako/quiz-pipeline';
 import { buildApp } from '../../src/app.js';
@@ -19,7 +19,7 @@ function nlQuestion(id: string, category = 'Voorrang'): SourceQuestion {
 }
 
 async function fixture() {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const mediaRoot = await mkdtemp(join(tmpdir(), 'fako-sched-media-'));
     const mediaStorage = new LocalMediaStorage(mediaRoot);
     const project = await prisma.project.create({ data: { name: `Scheduler ${randomUUID()}`, languages: ['fr', 'nl'] } });

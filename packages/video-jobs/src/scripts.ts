@@ -1,7 +1,6 @@
-import { Queue, UnrecoverableError } from 'bullmq';
+import { Queue, UnrecoverableError } from '@fako/jobs';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { Ajv } from 'ajv';
-import { redisConnection } from './index.js';
 import type { SourceQuestion } from '@fako/content-sources';
 import { AIProviderError, estimatedCost, parseScript, type AIProvider, type AIResult, type Pricing, type ScriptInput } from './ai.js';
 import { verifiedFactsSchema } from './editorial.js';
@@ -13,7 +12,7 @@ export class ScriptRequestError extends Error {
 export const scriptQueueName = 'video-scripts';
 export function createScriptQueue() {
     return new Queue<{ scriptId: string }>(scriptQueueName, {
-        connection: redisConnection(), defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
+        defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
     });
 }
 const validateFacts = new Ajv().compile(verifiedFactsSchema);

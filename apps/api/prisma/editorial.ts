@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { rijPermisEditorial } from '@fako/video-jobs';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 try {
     const project = await prisma.project.findUnique({ where: { slug: 'rijpermis' } });
     if (!project) throw new Error('Run db:seed first');

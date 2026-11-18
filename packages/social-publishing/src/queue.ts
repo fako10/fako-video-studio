@@ -1,18 +1,17 @@
-import { Queue } from 'bullmq';
+import { Queue } from '@fako/jobs';
 import type { PrismaClient } from '@prisma/client';
-import { redisConnection } from '@fako/video-jobs';
 
 export const socialPublicationQueueName = 'social-publications';
 
 export function createSocialPublicationQueue() {
     return new Queue<{ publicationId: string }>(socialPublicationQueueName, {
-        connection: redisConnection(), defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 5000 } }
+        defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 5000 } }
     });
 }
 
 // Outbox dispatch, mirroring dispatchQuizVideos (mission 10) exactly: the database row is the
-// source of truth, jobId = row id makes re-dispatch idempotent (BullMQ simply refuses a duplicate
-// jobId), and a job BullMQ itself gave up on (stalled-recovery/attempts exhausted) is reconciled
+// source of truth, jobId = row id makes re-dispatch idempotent (the queue simply refuses a duplicate
+// jobId), and a job the queue itself gave up on (stalled-recovery/attempts exhausted) is reconciled
 // back into a terminal DB status rather than left to silently disappear.
 export async function dispatchSocialPublications(prisma: PrismaClient, queue: Pick<ReturnType<typeof createSocialPublicationQueue>, 'add' | 'getJob'>) {
     let cursor: string | undefined;

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { runSocialPublicationSchedulerTick } from '@fako/social-publishing';
 import { logger } from './logger.js';
 
@@ -10,7 +10,7 @@ if ((process.env.SOCIAL_PUBLISHING_ENABLED ?? 'false') !== 'true') {
     process.exit(0);
 }
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 function positiveInteger(name: string, fallback: number): number {
     const value = Number(process.env[name] ?? fallback);

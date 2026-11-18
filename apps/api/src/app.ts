@@ -7,6 +7,7 @@ import { loadEncryptionKeyFromEnv, loadPreviousEncryptionKeyFromEnv, socialConne
 import { audioRoutes } from './routes/audio.js';
 import Fastify, { type FastifyError } from 'fastify';
 import { Prisma, PrismaClient, type SocialPlatform } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { projectRoutes } from './routes/projects.js';
 import { publicQuizVideoRoutes } from './routes/public-quiz-videos.js';
 import { rijPermisRoutes } from './routes/rijpermis.js';
@@ -41,7 +42,7 @@ export function buildApp(options: {
     // rest of helmet's defaults (nosniff, frameguard, hidePoweredBy, hsts, etc.) are free, standard
     // hardening with no behavior to break.
     app.register(helmet, { contentSecurityPolicy: false });
-    const prisma = options.prisma ?? new PrismaClient();
+    const prisma = options.prisma ?? createPrismaClient();
 
     if (!options.prisma) app.addHook('onClose', async () => prisma.$disconnect());
 

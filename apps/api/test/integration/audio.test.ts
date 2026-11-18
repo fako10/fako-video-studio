@@ -5,21 +5,20 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
-import { Queue, Worker } from 'bullmq';
-import { redisConnection } from '@fako/video-jobs';
+import { createPrismaClient } from '@fako/db';
+import { Queue, Worker } from '@fako/jobs';
 import { audioQueueName, dispatchAudio, LocalAudioStorage, MockTTSProvider, processAudio, TTSError, type TTSProvider } from '@fako/ai-providers';
 import { buildApp } from '../../src/app.js';
 
-test('Audio approval, concurrent idempotency, BullMQ retries, persistence and protected preview', async () => {
-    const prisma = new PrismaClient();
+test('Audio approval, concurrent idempotency, queue retries, persistence and protected preview', async () => {
+    const prisma = createPrismaClient();
     const token = 'test-audio-token-123456789012345678901234';
     const headers = { authorization: `Bearer ${token}` };
     const storage = new LocalAudioStorage(await mkdtemp(join(tmpdir(), 'fako-audio-integration-')));
     const app = buildApp({ prisma, audioToken: token, audioGenerationEnabled: true, audioStorage: storage });
     const project = await prisma.project.create({ data: { name: 'Audio tests', languages: ['fr', 'nl'] } });
     const job = await prisma.videoJob.create({ data: { projectId: project.id, subject: 'Daily exam', language: 'fr', width: 1080, height: 1920, fps: 30, status: 'COMPLETED', scriptGenerationRequested: true } });
-    const queue = new Queue<{ audioAssetId: string }>(audioQueueName, { connection: redisConnection(), defaultJobOptions: { attempts: 3, backoff: { type: 'fixed', delay: 30 } } });
+    const queue = new Queue<{ audioAssetId: string }>(audioQueueName, { defaultJobOptions: { attempts: 3, backoff: { type: 'fixed', delay: 30 } } });
     let worker: Worker | undefined;
     let version = 0;
     const createScript = (approved = true) => prisma.videoScript.create({ data: { videoJobId: job.id, requestId: randomUUID(), version: ++version, language: 'fr', narration: 'Entraînez-vous ensemble.', editorialSnapshot: {}, generationStatus: 'GENERATED', validationStatus: approved ? 'APPROVED' : 'PENDING_APPROVAL', reviewedAt: approved ? new Date() : null, reviewedBy: approved ? 'Human' : null } });
@@ -36,7 +35,7 @@ test('Audio approval, concurrent idempotency, BullMQ retries, persistence and pr
         assert.equal(asset.id, responses[1].json().id);
         let attempts = 0;
         const provider: TTSProvider = { name: 'mock', synthesize: async input => { if (++attempts === 1) throw new TTSError('TTS_HTTP_429', true); return mock.synthesize(input); } };
-        worker = new Worker(audioQueueName, item => processAudio(prisma, item.data.audioAssetId, provider, storage), { connection: redisConnection(), concurrency: 2 });
+        worker = new Worker(audioQueueName, item => processAudio(prisma, item.data.audioAssetId, provider, storage), { concurrency: 2, pollingIntervalSeconds: 0.5 });
         await dispatchAudio(prisma, queue); await dispatchAudio(prisma, queue);
         let current = await prisma.audioAsset.findUniqueOrThrow({ where: { id: asset.id } });
         const deadline = Date.now() + 10000;

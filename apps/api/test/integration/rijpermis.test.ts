@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { LocalMediaStorage, MockContentSourceProvider, type SourceQuestion } from '@fako/content-sources';
 import { generateVideoScript, type AIProvider, type ScriptInput } from '@fako/video-jobs';
 import { buildApp } from '../../src/app.js';
@@ -37,7 +37,7 @@ function exactAnswer(question: SourceQuestion, input: ScriptInput) {
 }
 
 test('RijPermis-sourced quiz generation: traceability, verbatim enforcement, publication check, and disabled-by-default', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const storage = new LocalMediaStorage(await mkdtemp(join(tmpdir(), 'fako-rijpermis-integration-')));
     const questions: SourceQuestion[] = [sourceQuestion()];
     const provider = new MockContentSourceProvider(questions);
@@ -135,7 +135,7 @@ test('RijPermis-sourced quiz generation: traceability, verbatim enforcement, pub
 });
 
 test('a non-sourced script request still works unchanged and creates no VideoScriptSource row', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, scriptGenerationEnabled: true, videoScriptsToken: TOKEN });
     const project = await prisma.project.create({ data: { name: 'Regression check', languages: ['fr'],
         editorialInstructions: 'Rester factuel.', verifiedFacts: [{ id: 'business-fact', text: 'Faux fait métier', source: 'Test' }] } });

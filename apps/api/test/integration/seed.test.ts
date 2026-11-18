@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import './_test-env.js';
 import assert from 'node:assert/strict';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { seedRijPermis } from '../../src/seed.js';
 import { buildApp } from '../../src/app.js';
 
@@ -9,7 +9,7 @@ const TOKEN = 'test-seed-integration-token-1234567890';
 const headers = { authorization: `Bearer ${TOKEN}` };
 
 test('RijPermis seed is concurrent-safe, idempotent and preserves existing configuration', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, projectsToken: TOKEN });
     let createdId: string | undefined;
     try {

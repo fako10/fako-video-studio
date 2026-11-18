@@ -18,8 +18,8 @@
     "@fako/publishing": "0.1.0",
     "@fako/quiz-pipeline": "0.1.0",
     "@fako/video-jobs": "0.1.0",
-    "@prisma/client": "6.12.0",
-    "bullmq": "^5.0.0"
+    "@prisma/client": "6.19.3",
+    "@fako/jobs": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

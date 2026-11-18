@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import './_test-env.js';
 import assert from 'node:assert/strict';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '@fako/db';
 import { buildApp } from '../../src/app.js';
 
 const TOKEN = 'test-projects-integration-token-1234567890';
 const headers = { authorization: `Bearer ${TOKEN}` };
 
 test('PostgreSQL CRUD, defaults, isolation, persistence and cascading deletion', async () => {
-    const prisma = new PrismaClient();
+    const prisma = createPrismaClient();
     const app = buildApp({ prisma, projectsToken: TOKEN });
     const ids: string[] = [];
     try {
