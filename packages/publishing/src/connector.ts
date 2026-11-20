@@ -51,14 +51,48 @@ export interface SocialPlatformConnector {
     getPublicationStatus(remoteRef: string, accessToken: string): Promise<PublicationStatusResult>;
 }
 
+// YouTube et Snapchat : plateformes déclarées dès l'étape 2 (choix possibles dans les programmes),
+// connecteurs réels prévus à l'étape 6. Les permissions Snapchat seront confirmées à ce moment-là
+// sur la documentation officielle ; d'ici là, aucun compte Snapchat ne peut être connecté.
 export const PUBLISH_SCOPE_BY_PLATFORM: Record<SocialPlatform, string> = {
     TIKTOK: 'video.publish',
     INSTAGRAM: 'instagram_business_content_publish',
-    FACEBOOK: 'pages_manage_posts'
+    FACEBOOK: 'pages_manage_posts',
+    YOUTUBE: 'https://www.googleapis.com/auth/youtube.upload',
+    SNAPCHAT: 'snapchat.publish (à confirmer)'
 };
 
 export const BASIC_SCOPES_BY_PLATFORM: Record<SocialPlatform, string[]> = {
     TIKTOK: ['user.info.basic'],
     INSTAGRAM: ['instagram_business_basic'],
-    FACEBOOK: ['pages_show_list', 'pages_read_engagement']
+    FACEBOOK: ['pages_show_list', 'pages_read_engagement'],
+    YOUTUBE: ['https://www.googleapis.com/auth/youtube.readonly'],
+    SNAPCHAT: []
 };
+
+// Connecteur de remplacement pour une plateforme pas encore implémentée : jamais « configuré »,
+// ne peut ni connecter un compte ni publier (échec définitif explicite, jamais silencieux).
+export class UnavailableConnector implements SocialPlatformConnector {
+    constructor(readonly platform: SocialPlatform) {}
+    isConfigured(): boolean { return false; }
+    #unsupported(): never { throw new Error(`PLATFORM_NOT_SUPPORTED_YET: ${this.platform}`); }
+    getAuthorizationUrl(): string { return this.#unsupported(); }
+    async exchangeCodeForTokens(): Promise<OAuthTokenSet> { return this.#unsupported(); }
+    async refreshCredentials(): Promise<OAuthTokenSet> { return this.#unsupported(); }
+    async getAccountInfo(): Promise<ExternalAccountInfo> { return this.#unsupported(); }
+    getCapabilities(context: { grantedScopes: string[] }): Capabilities {
+        return {
+            platform: this.platform, connected: false, tokenValid: false, grantedScopes: context.grantedScopes,
+            missingScopes: [PUBLISH_SCOPE_BY_PLATFORM[this.platform]], canPublishDirectly: false, requiresManualStep: false,
+            notes: ['Connecteur prévu à l\'étape 6 du projet']
+        };
+    }
+    validateMediaRequirements(): MediaValidationResult { return { ok: true, errors: [], warnings: [] }; }
+    async disconnectAccount(): Promise<void> {}
+    async publishVideo(): Promise<PublishVideoResult> {
+        return { outcome: 'FAILED', retryable: false, code: 'PLATFORM_NOT_SUPPORTED_YET', message: `${this.platform} n'est pas encore pris en charge` };
+    }
+    async getPublicationStatus(): Promise<PublicationStatusResult> {
+        return { outcome: 'FAILED', retryable: false, code: 'PLATFORM_NOT_SUPPORTED_YET', message: `${this.platform} n'est pas encore pris en charge` };
+    }
+}

@@ -23,7 +23,7 @@ ${!connectedAccounts.length ? '<p class="muted">Aucun compte social connecté �
 <form method="post" action="/admin/publications/new" class="card">
   <input type="hidden" name="requestId" value="${options.requestId}">
   <label style="display:block; margin-bottom:.8rem;">Vidéo approuvée
-    <select name="quizVideoId" required style="width:100%;">
+    <select name="videoId" required style="width:100%;">
       <option value="">— Choisir —</option>
       ${videoOptions}
     </select>

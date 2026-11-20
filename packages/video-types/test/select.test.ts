@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MockContentSourceProvider, mockQuestion, type SourceQuestion } from '@fako/content-sources';
 import { QuizVideoRequestError } from '../src/errors.js';
-import { selectRijPermisQuestion } from '../src/select.js';
+import { selectRijPermisQuestion } from '../src/daily-quiz/select.js';
 import type { UsageStats } from '../src/rotation.js';
 
 const other: SourceQuestion = { ...mockQuestion, id: 'mock-2' };

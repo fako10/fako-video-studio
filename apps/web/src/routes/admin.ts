@@ -212,7 +212,7 @@ export const adminRoutes: FastifyPluginAsync<{ apiClient: ApiClient; projectSlug
         }
     });
 
-    app.get<{ Querystring: { quizVideoId?: string; flash?: string; flashType?: string } }>('/admin/publications/new', async (request, reply) => {
+    app.get<{ Querystring: { videoId?: string; flash?: string; flashType?: string } }>('/admin/publications/new', async (request, reply) => {
         const username = getSessionUser(request)!;
         try {
             const projectId = await resolveProjectId();
@@ -221,7 +221,7 @@ export const adminRoutes: FastifyPluginAsync<{ apiClient: ApiClient; projectSlug
                 apiClient.listSocialAccounts(projectId)
             ]);
             return reply.type('text/html').send(publicationsNewPage({
-                username, quizVideos, accounts, requestId: randomUUID(), preselectedQuizVideoId: request.query.quizVideoId, query: request.query
+                username, quizVideos, accounts, requestId: randomUUID(), preselectedQuizVideoId: request.query.videoId, query: request.query
             }));
         } catch (error) {
             return reply.code(error instanceof ApiError ? error.statusCode : 500).type('text/html').send(errorPage(username, errorMessage(error)));
@@ -229,19 +229,19 @@ export const adminRoutes: FastifyPluginAsync<{ apiClient: ApiClient; projectSlug
     });
 
     app.post<{ Body: {
-        quizVideoId?: string; socialAccountId?: string; language?: string; caption?: string; hashtags?: string;
+        videoId?: string; socialAccountId?: string; language?: string; caption?: string; hashtags?: string;
         scheduledAtLocal?: string; requestId?: string;
     } }>('/admin/publications/new', async (request, reply) => {
         const username = getSessionUser(request)!;
-        const { quizVideoId, socialAccountId, language, caption, requestId } = request.body;
-        if (!quizVideoId || !socialAccountId || (language !== 'fr' && language !== 'nl') || !caption?.trim() || !requestId) {
+        const { videoId, socialAccountId, language, caption, requestId } = request.body;
+        if (!videoId || !socialAccountId || (language !== 'fr' && language !== 'nl') || !caption?.trim() || !requestId) {
             return reply.code(400).type('text/plain').send('Champs manquants ou invalides');
         }
         const hashtags = (request.body.hashtags ?? '').split(/\s+/).map(h => h.trim()).filter(Boolean);
         try {
             const projectId = await resolveProjectId();
             const publication = await apiClient.schedulePublication(projectId, {
-                quizVideoId, socialAccountId, language, caption: caption.trim(), hashtags,
+                videoId, socialAccountId, language, caption: caption.trim(), hashtags,
                 scheduledAtLocal: request.body.scheduledAtLocal || undefined, requestId, createdBy: username
             });
             return flashRedirect(reply, `/admin/publications/${publication.id}`, publication.status === 'SCHEDULED' ? 'Publication programmée.' : 'Publication enregistrée en brouillon.');

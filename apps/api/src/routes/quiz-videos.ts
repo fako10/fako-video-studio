@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import type { ContentSourceProvider, MediaStorage } from '@fako/content-sources';
 import type { VideoStorage } from '@fako/media-engine';
-import { requestQuizVideo, reviewQuizVideo } from '@fako/quiz-pipeline';
+import { requestQuizVideo, reviewQuizVideo } from '@fako/video-pipeline';
 
 const uuid = { type: 'string', format: 'uuid' };
 const idParams = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: uuid } };
@@ -51,21 +51,21 @@ export const quizVideoRoutes: FastifyPluginAsync<{
             ...(dayStart ? { createdAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 86_400_000) } } : {})
         };
         const [quizVideos, total] = await prisma.$transaction([
-            prisma.quizVideo.findMany({ where, take: Number(request.query.limit ?? 20), skip: Number(request.query.offset ?? 0), orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
-            prisma.quizVideo.count({ where })
+            prisma.video.findMany({ where, take: Number(request.query.limit ?? 20), skip: Number(request.query.offset ?? 0), orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
+            prisma.video.count({ where })
         ]);
         return { quizVideos, total };
     });
 
     app.get<{ Params: { id: string } }>('/quiz-videos/:id', { schema: { params: idParams } }, async (request, reply) =>
-        await prisma.quizVideo.findUnique({ where: { id: request.params.id } }) ?? reply.code(404).send({ error: 'Quiz video not found' }));
+        await prisma.video.findUnique({ where: { id: request.params.id } }) ?? reply.code(404).send({ error: 'Quiz video not found' }));
 
     // Quiz videos are short (a few MB); reading the whole file and slicing it in memory is simpler
     // and just as correct as a ranged read from storage, and still gives the browser real 206/
     // Content-Range behavior — which it needs to seek in the player at all (mission 12 gap).
     app.get<{ Params: { id: string } }>('/quiz-videos/:id/preview', { schema: { params: idParams } }, async (request, reply) => {
         reply.header('Cache-Control', 'private, no-store').header('X-Content-Type-Options', 'nosniff').header('Accept-Ranges', 'bytes');
-        const quizVideo = await prisma.quizVideo.findUnique({ where: { id: request.params.id } });
+        const quizVideo = await prisma.video.findUnique({ where: { id: request.params.id } });
         if (!quizVideo) return reply.code(404).send({ error: 'Quiz video not found' });
         if (!quizVideo.fileKey || !['WAITING_APPROVAL', 'COMPLETED'].includes(quizVideo.status)) return reply.code(409).send({ error: 'Quiz video unavailable' });
         let buffer: Buffer;

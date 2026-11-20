@@ -51,14 +51,14 @@ test('submitting the new-publication form schedules a publication and never call
         const response = await app.inject({
             url: '/admin/publications/new', cookies, method: 'POST',
             payload: {
-                quizVideoId: 'vid-1', socialAccountId: 'social-1', language: 'fr', caption: 'Le quiz du jour !',
+                videoId: 'vid-1', socialAccountId: 'social-1', language: 'fr', caption: 'Le quiz du jour !',
                 hashtags: '#codederoute #permis', scheduledAtLocal: '2026-03-01T09:00', requestId: 'req-abc'
             }
         });
         assert.equal(response.statusCode, 302);
         assert.match(response.headers.location as string, /^\/admin\/publications\/pub-1\?flash=/);
         assert.equal(apiClient.schedulePublicationCalls.length, 1);
-        assert.equal(apiClient.schedulePublicationCalls[0].input.quizVideoId, 'vid-1');
+        assert.equal(apiClient.schedulePublicationCalls[0].input.videoId, 'vid-1');
         assert.deepEqual(apiClient.schedulePublicationCalls[0].input.hashtags, ['#codederoute', '#permis']);
         assert.equal(apiClient.schedulePublicationCalls[0].input.createdBy, 'admin');
 
@@ -71,7 +71,7 @@ test('an incomplete new-publication submission is rejected before calling the AP
     const { app, apiClient } = await buildTestApp();
     try {
         const cookies = await loginAndGetCookie(app);
-        const response = await app.inject({ url: '/admin/publications/new', cookies, method: 'POST', payload: { quizVideoId: 'vid-1' } });
+        const response = await app.inject({ url: '/admin/publications/new', cookies, method: 'POST', payload: { videoId: 'vid-1' } });
         assert.equal(response.statusCode, 400);
         assert.equal(apiClient.schedulePublicationCalls.length, 0);
     } finally { await app.close(); }
@@ -121,7 +121,7 @@ test('an API error while scheduling surfaces as a flash instead of a 500', async
         const cookies = await loginAndGetCookie(app);
         const response = await app.inject({
             url: '/admin/publications/new', cookies, method: 'POST',
-            payload: { quizVideoId: 'vid-missing', socialAccountId: 'social-missing', language: 'fr', caption: 'x', requestId: 'req-x' }
+            payload: { videoId: 'vid-missing', socialAccountId: 'social-missing', language: 'fr', caption: 'x', requestId: 'req-x' }
         });
         // FakeApiClient.schedulePublication never throws for unknown ids (it just creates one), so this
         // exercises the success path end-to-end; a thrown ApiError is covered by the social-settings

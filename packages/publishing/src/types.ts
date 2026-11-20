@@ -1,4 +1,4 @@
-import type { QuizVideo, SocialConnectionStatus, SocialPlatform } from '@prisma/client';
+import type { Video, SocialConnectionStatus, SocialPlatform } from '@prisma/client';
 
 export { SocialPlatform, SocialConnectionStatus };
 
@@ -60,7 +60,7 @@ export type MediaValidationResult = {
 
 // Only the QuizVideo fields the readiness check actually reasons about — callers pass a real
 // Prisma row, but tests can build a plain object without touching a database.
-export type QuizVideoReadinessInput = Pick<QuizVideo, 'status' | 'validationStatus' | 'checkStatus' | 'checkedAt' | 'contentHash'>;
+export type QuizVideoReadinessInput = Pick<Video, 'status' | 'validationStatus' | 'checkStatus' | 'checkedAt' | 'contentHash'>;
 
 export type ReadinessResult = {
     ready: boolean;

@@ -83,7 +83,7 @@ export async function runPublicationAttempt(prisma: PrismaClient, id: string, de
         // Media requirements (size/format/duration) were already confirmed by verifyBeforeSend's
         // connector.validateMediaRequirements call above — minting a link only ever happens for
         // media Instagram has already been confirmed able to accept.
-        publicVideoUrl = await createPublicVideoLink(prisma, claimed.quizVideoId, deps.publicLinkBaseUrl, deps.publicVideoLinkTtlMs);
+        publicVideoUrl = await createPublicVideoLink(prisma, claimed.videoId, deps.publicLinkBaseUrl, deps.publicVideoLinkTtlMs);
     }
 
     let result: PublishVideoResult;
@@ -104,7 +104,7 @@ export async function runPublicationAttempt(prisma: PrismaClient, id: string, de
 
     if (result.outcome === 'PUBLISHED') {
         // Terminal, and (unlike PENDING) Meta cannot still be mid-fetch — safe to revoke now.
-        await revokePublicVideoLinksForQuizVideo(prisma, claimed.quizVideoId);
+        await revokePublicVideoLinksForQuizVideo(prisma, claimed.videoId);
         await prisma.socialPublication.update({ where: { id }, data: {
             status: 'PUBLISHED', remotePostId: result.remotePostId, remoteUrl: result.remoteUrl ?? null, publishedAt: new Date(), lastError: null
         } });
@@ -126,7 +126,7 @@ export async function runPublicationAttempt(prisma: PrismaClient, id: string, de
     // result.outcome === 'FAILED': a confirmed, non-ambiguous rejection from the platform, returned
     // synchronously — Meta never registered the video_url for an asynchronous fetch, so any link
     // minted for this attempt is safe to revoke immediately (a retry mints its own fresh one).
-    await revokePublicVideoLinksForQuizVideo(prisma, claimed.quizVideoId);
+    await revokePublicVideoLinksForQuizVideo(prisma, claimed.videoId);
     const canRetry = result.retryable && options.attempt < options.maxAttempts;
     await finishAttempt(prisma, id, attemptNumber, 'FAILED', result.message, result.code);
     if (canRetry) {

@@ -22,7 +22,7 @@ const ACTIVE_OR_UNRESOLVED = ['DRAFT', 'SCHEDULED', 'READY', 'PUBLISHING', 'OUTC
 
 let eligible = 0, deleted = 0, failed = 0;
 try {
-    const candidates = await prisma.quizVideo.findMany({
+    const candidates = await prisma.video.findMany({
         where: {
             fileKey: { not: null }, createdAt: { lt: cutoff },
             socialPublications: { none: { status: { in: [...ACTIVE_OR_UNRESOLVED] } } }

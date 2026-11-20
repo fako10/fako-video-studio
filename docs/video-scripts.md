@@ -1,5 +1,7 @@
 # Scénarios vidéo avec OpenAI
 
+> **Note (refonte 2026)** : ce document décrit une mission antérieure. Depuis l'étape 1, Docker, Redis et BullMQ sont remplacés par PostgreSQL seul (file de tâches `@fako/jobs`, basée sur pg-boss). Depuis l'étape 2, les tables `QuizVideo`, `ScheduledQuizSlot` et `QuizVideoPublicLink` s'appellent `Video`, `ScheduledSlot` et `VideoPublicLink`, et la planification se fait par programme. Voir [architecture.md](architecture.md).
+
 ## Architecture et garde-fous
 
 L'API crée une demande durable `VideoScript`, puis le worker la traite via la file

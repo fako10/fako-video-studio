@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { contentSourceFromEnv, LocalMediaStorage } from '@fako/content-sources';
-import { parseSlotsFromEnv, type SchedulerConfig } from '@fako/quiz-pipeline';
+import { contentSourcesByKey, type RequestDeps, type SchedulerConfig } from '@fako/video-pipeline';
 
 function positiveInteger(name: string, fallback: number): number {
     const value = Number(process.env[name] ?? fallback);
@@ -8,19 +8,19 @@ function positiveInteger(name: string, fallback: number): number {
     return value;
 }
 
+// Les créneaux, jours et fuseaux sont désormais définis par programme et par projet, en base.
 export function loadSchedulerConfig(): SchedulerConfig {
     return {
-        slots: parseSlotsFromEnv(process.env.SCHEDULER_SLOTS),
-        timeZone: process.env.SCHEDULER_TIMEZONE || 'Europe/Brussels',
         graceMinutes: positiveInteger('SCHEDULER_GRACE_MINUTES', 120),
         maxPendingJobs: positiveInteger('SCHEDULER_MAX_PENDING_JOBS', 10)
     };
 }
 
-export function loadProviderAndStorage() {
-    const provider = contentSourceFromEnv(process.env);
-    const mediaStorage = new LocalMediaStorage(process.env.RIJPERMIS_MEDIA_ROOT || resolve(import.meta.dirname, '../../../storage/rijpermis-images'));
-    return { provider, mediaStorage };
+export function loadRequestDeps(): RequestDeps {
+    const rijpermis = contentSourceFromEnv(process.env);
+    return {
+        contentSourceFor: contentSourcesByKey({ rijpermis }),
+        mediaStorage: new LocalMediaStorage(process.env.RIJPERMIS_MEDIA_ROOT || resolve(import.meta.dirname, '../../../storage/rijpermis-images')),
+        brandAssetsRoot: process.env.BRAND_ASSETS_ROOT || resolve(import.meta.dirname, '../../../assets/brands')
+    };
 }
-
-export const projectSlug = process.env.SCHEDULER_PROJECT_SLUG || 'rijpermis';

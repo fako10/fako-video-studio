@@ -1,10 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { verifiedFactsSchema } from '@fako/video-jobs';
 
 type Settings = { width?: number; height?: number; fps?: number; videosPerDay?: number; publicationEnabled?: boolean; humanValidationRequired?: boolean };
-type ProjectBody = { name: string; description?: string | null; slug?: string | null; website?: string | null; category?: string | null; languages?: string[]; objective?: string | null; editorialInstructions?: string; verifiedFacts?: { id: string; text: string; source: string; kind?: 'BUSINESS' | 'ROAD_RULE' }[]; settings?: Settings };
+type ProjectBody = { brandId?: string | null; language?: string | null; timezone?: string; contentSource?: string | null; brandOverrides?: Prisma.InputJsonObject; name: string; description?: string | null; slug?: string | null; website?: string | null; category?: string | null; languages?: string[]; objective?: string | null; editorialInstructions?: string; verifiedFacts?: { id: string; text: string; source: string; kind?: 'BUSINESS' | 'ROAD_RULE' }[]; settings?: Settings };
 const settingsSchema = {
     type: 'object', additionalProperties: false,
     properties: {
@@ -26,7 +26,12 @@ const properties = {
     objective: { anyOf: [{ type: 'string', maxLength: 5000 }, { type: 'null' }] },
     editorialInstructions: { type: 'string', maxLength: 20000 },
     verifiedFacts: verifiedFactsSchema,
-    settings: settingsSchema
+    settings: settingsSchema,
+    brandId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+    language: { anyOf: [{ type: 'string', pattern: '^[a-z]{2}$' }, { type: 'null' }] },
+    timezone: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z_]+(?:/[A-Za-z_+-]+)*$' },
+    contentSource: { anyOf: [{ type: 'string', pattern: '^[a-z][a-z0-9-]{1,49}$' }, { type: 'null' }] },
+    brandOverrides: { type: 'object' }
 };
 const params = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: { type: 'string', format: 'uuid' } } };
 

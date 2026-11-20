@@ -14,7 +14,7 @@ import { LocalVideoStorage } from '@fako/media-engine';
 import {
     createQuizVideoQueue, dispatchQuizVideos, generateQuizVideo, quizVideoQueueName,
     requestQuizVideo, reviewQuizVideo, type QuizVideoDeps, type RenderAndMeasure
-} from '@fako/quiz-pipeline';
+} from '@fako/video-pipeline';
 import { buildApp } from '../../src/app.js';
 
 // Spins up a headless browser and encodes a real MP4 (downloads headless Chrome on first use).
@@ -68,7 +68,7 @@ test('FR success end to end: creation, idempotency, generation, preview, no auto
 
         await generateQuizVideo(prisma, quizVideo.id, deps({ videoStorage: dirs.videoStorage, publicDir: dirs.publicDir, mediaRoot: dirs.mediaRoot }), { attempt: 1, maxAttempts: 3 });
 
-        const generated = await prisma.quizVideo.findUniqueOrThrow({ where: { id: quizVideo.id } });
+        const generated = await prisma.video.findUniqueOrThrow({ where: { id: quizVideo.id } });
         assert.equal(generated.status, 'WAITING_APPROVAL', 'never published automatically');
         assert.equal(generated.durationSeconds, 12);
         assert.ok(generated.fileKey);
@@ -86,7 +86,7 @@ test('FR success end to end: creation, idempotency, generation, preview, no auto
         assert.equal(review.json().validationStatus, 'APPROVED');
         assert.equal((await app.inject({ method: 'POST', url: `/quiz-videos/${quizVideo.id}/review`, headers, payload: { reviewedBy: 'Human', decision: 'APPROVED' } })).statusCode, 409, 'cannot review twice');
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { id: { in: quizVideoIds } } });
+        await prisma.video.deleteMany({ where: { id: { in: quizVideoIds } } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await app.close();
@@ -104,7 +104,7 @@ test('rejects creation when the project has no voice configured for the language
     try {
         const response = await app.inject({ method: 'POST', url: `/projects/${project.id}/quiz-videos`, headers, payload: { requestId: randomUUID(), language: 'nl' } });
         assert.equal(response.statusCode, 409);
-        assert.equal(await prisma.quizVideo.count({ where: { projectId: project.id } }), 0);
+        assert.equal(await prisma.video.count({ where: { projectId: project.id } }), 0);
     } finally {
         await prisma.project.delete({ where: { id: project.id } });
         await app.close();
@@ -123,7 +123,7 @@ test('no eligible question available for the language is reported clearly, not s
         await prisma.projectVoice.create({ data: { projectId: project.id, language: 'fr', voiceId: 'voice-fr', model: 'eleven_multilingual_v2', settings: {} } });
         const response = await app.inject({ method: 'POST', url: `/projects/${project.id}/quiz-videos`, headers, payload: { requestId: randomUUID(), language: 'fr' } });
         assert.equal(response.statusCode, 409);
-        assert.equal(await prisma.quizVideo.count({ where: { projectId: project.id } }), 0);
+        assert.equal(await prisma.video.count({ where: { projectId: project.id } }), 0);
     } finally {
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
@@ -143,7 +143,7 @@ test('an explicit questionId the API refuses to export is never used', async () 
         await prisma.projectVoice.create({ data: { projectId: project.id, language: 'fr', voiceId: 'voice-fr', model: 'eleven_multilingual_v2', settings: {} } });
         const response = await app.inject({ method: 'POST', url: `/projects/${project.id}/quiz-videos`, headers, payload: { requestId: randomUUID(), language: 'fr', questionId: 'does-not-exist' } });
         assert.equal(response.statusCode, 404);
-        assert.equal(await prisma.quizVideo.count({ where: { projectId: project.id } }), 0);
+        assert.equal(await prisma.video.count({ where: { projectId: project.id } }), 0);
     } finally {
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
@@ -170,8 +170,8 @@ test('a non-retryable TTS failure fails the job without retrying, and a retryabl
         const fatal = await createPendingQuizVideo(prisma, dirs, provider, project);
         const authFailure: TTSProvider = { name: 'fake', synthesize: async () => { throw new TTSError('TTS_HTTP_401'); } };
         await assert.rejects(generateQuizVideo(prisma, fatal.id, { ...d, ttsProvider: authFailure }, { attempt: 1, maxAttempts: 3 }));
-        assert.equal((await prisma.quizVideo.findUniqueOrThrow({ where: { id: fatal.id } })).status, 'FAILED');
-        assert.equal((await prisma.quizVideo.findUniqueOrThrow({ where: { id: fatal.id } })).errorMessage, 'TTS_HTTP_401');
+        assert.equal((await prisma.video.findUniqueOrThrow({ where: { id: fatal.id } })).status, 'FAILED');
+        assert.equal((await prisma.video.findUniqueOrThrow({ where: { id: fatal.id } })).errorMessage, 'TTS_HTTP_401');
 
         const transient = await createPendingQuizVideo(prisma, dirs, provider, project);
         // synthesizeQuizNarration fires one call per scene (up to 6, in parallel); failing the whole
@@ -182,11 +182,11 @@ test('a non-retryable TTS failure fails the job without retrying, and a retryabl
             return new MockTTSProvider().synthesize(input);
         } };
         await assert.rejects(generateQuizVideo(prisma, transient.id, { ...d, ttsProvider: flaky }, { attempt: 1, maxAttempts: 3 }));
-        assert.equal((await prisma.quizVideo.findUniqueOrThrow({ where: { id: transient.id } })).status, 'PENDING', 'a retryable failure goes back to PENDING, not FAILED');
+        assert.equal((await prisma.video.findUniqueOrThrow({ where: { id: transient.id } })).status, 'PENDING', 'a retryable failure goes back to PENDING, not FAILED');
         await generateQuizVideo(prisma, transient.id, { ...d, ttsProvider: flaky }, { attempt: 2, maxAttempts: 3 });
-        assert.equal((await prisma.quizVideo.findUniqueOrThrow({ where: { id: transient.id } })).status, 'WAITING_APPROVAL');
+        assert.equal((await prisma.video.findUniqueOrThrow({ where: { id: transient.id } })).status, 'WAITING_APPROVAL');
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await dirs.cleanup();
@@ -203,11 +203,11 @@ test('a render crash fails the job without retrying (not a TTS error) and never 
         const quizVideo = await createPendingQuizVideo(prisma, dirs, provider, project);
         const crashingRender: RenderAndMeasure = async () => { throw new Error('RENDER_CRASHED'); };
         await assert.rejects(generateQuizVideo(prisma, quizVideo.id, deps({ videoStorage: dirs.videoStorage, publicDir: dirs.publicDir, mediaRoot: dirs.mediaRoot, renderAndMeasure: crashingRender }), { attempt: 1, maxAttempts: 3 }));
-        const failed = await prisma.quizVideo.findUniqueOrThrow({ where: { id: quizVideo.id } });
+        const failed = await prisma.video.findUniqueOrThrow({ where: { id: quizVideo.id } });
         assert.equal(failed.status, 'FAILED');
         assert.equal(failed.fileKey, null);
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await dirs.cleanup();
@@ -222,16 +222,16 @@ test('a crash left PROCESSING is never silently retried, to avoid risking a seco
     const project = await prisma.project.create({ data: { name: 'Outcome unknown', languages: ['fr'] } });
     try {
         const quizVideo = await createPendingQuizVideo(prisma, dirs, provider, project);
-        await prisma.quizVideo.update({ where: { id: quizVideo.id }, data: { status: 'PROCESSING', attempts: 1 } });
+        await prisma.video.update({ where: { id: quizVideo.id }, data: { status: 'PROCESSING', attempts: 1 } });
         let called = false;
         const shouldNotBeCalled: TTSProvider = { name: 'fake', synthesize: async () => { called = true; throw new Error('must not be called'); } };
         await generateQuizVideo(prisma, quizVideo.id, deps({ ttsProvider: shouldNotBeCalled, videoStorage: dirs.videoStorage, publicDir: dirs.publicDir, mediaRoot: dirs.mediaRoot }), { attempt: 2, maxAttempts: 3 });
         assert.equal(called, false);
-        const row = await prisma.quizVideo.findUniqueOrThrow({ where: { id: quizVideo.id } });
+        const row = await prisma.video.findUniqueOrThrow({ where: { id: quizVideo.id } });
         assert.equal(row.status, 'FAILED');
         assert.equal(row.errorMessage, 'QUIZ_VIDEO_OUTCOME_UNKNOWN');
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await dirs.cleanup();
@@ -260,7 +260,7 @@ test('identical narration text, voice and settings across two quiz videos reuses
         await generateQuizVideo(prisma, second.id, d, { attempt: 1, maxAttempts: 3 });
         assert.equal(mock.calls, callsAfterFirst, 'no new provider calls on the second, identical generation');
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await dirs.cleanup();
@@ -312,9 +312,9 @@ test('the outbox dispatcher enqueues pending rows exactly once and reconciles ex
         await dispatchQuizVideos(prisma, queue);
         assert.equal(await queue.getJob(quizVideo.id).then(j => j?.id), quizVideo.id, 'still the same single job, not duplicated');
     } finally {
-        await (await queue.getJob((await prisma.quizVideo.findFirst({ where: { projectId: project.id } }))?.id ?? ''))?.remove().catch(() => {});
+        await (await queue.getJob((await prisma.video.findFirst({ where: { projectId: project.id } }))?.id ?? ''))?.remove().catch(() => {});
         await queue.close();
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await dirs.cleanup();
@@ -334,20 +334,20 @@ test('full real pipeline: PostgreSQL, Redis-backed queue and an actual Remotion 
         await prisma.projectVoice.create({ data: { projectId: project.id, language: 'fr', voiceId: 'voice-fr', model: 'eleven_multilingual_v2', settings: {} } });
         const created = await app.inject({ method: 'POST', url: `/projects/${project.id}/quiz-videos`, headers, payload: { requestId: randomUUID(), language: 'fr' } });
         assert.equal(created.statusCode, 202);
-        const quizVideoId = created.json().id;
+        const videoId = created.json().id;
 
         await dispatchQuizVideos(prisma, queue);
-        await generateQuizVideo(prisma, quizVideoId, {
+        await generateQuizVideo(prisma, videoId, {
             ttsProvider: new MockTTSProvider(), videoStorage: dirs.videoStorage, publicDir: dirs.publicDir, mediaRoot: dirs.mediaRoot
             // renderAndMeasure intentionally omitted: uses the real Remotion render pipeline.
         }, { attempt: 1, maxAttempts: 3 });
 
-        const generated = await prisma.quizVideo.findUniqueOrThrow({ where: { id: quizVideoId } });
+        const generated = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
         assert.equal(generated.status, 'WAITING_APPROVAL');
         assert.ok(generated.durationSeconds && generated.durationSeconds > 0);
         assert.ok(generated.fileKey);
 
-        const preview = await app.inject({ url: `/quiz-videos/${quizVideoId}/preview`, headers });
+        const preview = await app.inject({ url: `/quiz-videos/${videoId}/preview`, headers });
         assert.equal(preview.statusCode, 200);
         const tempFile = join(dirs.publicDir, 'preview-check.mp4');
         await writeFile(tempFile, preview.rawPayload);
@@ -357,9 +357,9 @@ test('full real pipeline: PostgreSQL, Redis-backed queue and an actual Remotion 
         assert.equal(meta.fps, 30);
         assert.equal(meta.codec, 'h264');
     } finally {
-        await (await queue.getJob((await prisma.quizVideo.findFirst({ where: { projectId: project.id } }))?.id ?? ''))?.remove().catch(() => {});
+        await (await queue.getJob((await prisma.video.findFirst({ where: { projectId: project.id } }))?.id ?? ''))?.remove().catch(() => {});
         await queue.close();
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await app.close();
@@ -404,7 +404,7 @@ test('lists quiz videos filtered by language, status and day, with pagination', 
 
         assert.equal((await app.inject(`/projects/${project.id}/quiz-videos`)).statusCode, 401);
     } finally {
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
         await app.close();

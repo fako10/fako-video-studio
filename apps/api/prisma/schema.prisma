@@ -10,9 +10,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Marque : regroupe les projets d'une même entreprise et porte l'identité visuelle commune.
+model Brand {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique @db.VarChar(100)
+  name        String   @db.VarChar(200)
+  websiteUrl  String?  @db.VarChar(2048)
+  // Chemin du logo dans le stockage des médias de marque (assets/brands/<slug>/…).
+  logoKey     String?  @db.VarChar(500)
+  // Palette dérivée du logo, modifiable : { primary, secondary, accent, background, text }.
+  colors      Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projects    Project[]
+}
+
+// Projet = une chaîne de diffusion : une marque, une langue, une voix, une source de contenu,
+// des comptes sociaux et des programmes (types de vidéos activés avec leur planning).
 model Project {
   id          String          @id @default(uuid()) @db.Uuid
   name        String          @db.VarChar(200)
+  brandId     String?         @db.Uuid
+  brand       Brand?          @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  // Langue unique du projet (« fr », « nl »…). `languages` est conservé pour les anciens projets.
+  language    String?         @db.VarChar(10)
+  timezone    String          @default("Europe/Brussels") @db.VarChar(64)
+  // Connecteur de contenu utilisé par les types de vidéos qui en ont besoin (« rijpermis », « mock »…).
+  contentSource String?       @db.VarChar(50)
+  // Surcharges éventuelles de l'identité de la marque (couleurs, logo, lien).
+  brandOverrides Json         @default("{}")
   description String?         @db.VarChar(5000)
   slug        String?         @unique @db.VarChar(100)
   website     String?         @db.VarChar(2048)
@@ -26,8 +52,9 @@ model Project {
   settings    ProjectSettings?
   voices ProjectVoice[]
   videoJobs   VideoJob[]
-  quizVideos  QuizVideo[]
-  scheduledQuizSlots ScheduledQuizSlot[]
+  videos      Video[]
+  programs    Program[]
+  scheduledSlots ScheduledSlot[]
   socialAccounts SocialAccount[]
   socialOAuthStates SocialOAuthState[]
   socialPublications SocialPublication[]
@@ -217,7 +244,7 @@ model VideoScriptSource {
   @@index([sourceId, questionId])
 }
 
-enum QuizVideoStatus {
+enum VideoStatus {
   PENDING
   QUEUED
   PROCESSING
@@ -226,7 +253,7 @@ enum QuizVideoStatus {
   FAILED
 }
 
-enum QuizVideoValidationStatus {
+enum VideoValidationStatus {
   PENDING_APPROVAL
   APPROVED
   REJECTED
@@ -236,13 +263,21 @@ enum QuizVideoValidationStatus {
 // VideoJob/VideoScript: narration here is templated, not an OpenAI script, so forcing it into that
 // shape would duplicate meaning rather than data. Mirrors VideoScriptSource's traceability fields
 // (mission 7) and AudioAsset's output/usage fields (mission 5) for the parts that are genuinely analogous.
-model QuizVideo {
+// Vidéo = une exécution concrète d'un programme (ou une demande manuelle) pour un type de vidéo.
+// Les colonnes « source » ne sont renseignées que pour les types basés sur une question
+// (quiz du jour) ; le contenu propre à chaque type est stocké dans `content`.
+model Video {
   id        String   @id @default(uuid()) @db.Uuid
   projectId String   @db.Uuid
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  programId String?  @db.Uuid
+  program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  videoType String   @default("daily-quiz") @db.VarChar(50)
+  title     String?  @db.VarChar(300)
+  content   Json     @default("{}")
   requestId String   @unique @db.Uuid
   language  String   @db.VarChar(10)
-  status    QuizVideoStatus @default(PENDING)
+  status    VideoStatus @default(PENDING)
   attempts  Int      @default(0)
   errorMessage String? @db.VarChar(2000)
   createdAt DateTime @default(now())
@@ -251,14 +286,14 @@ model QuizVideo {
   finishedAt DateTime?
 
   // Source traceability, captured once at request time (mission 7 protections).
-  sourceId     String   @db.VarChar(50)
-  origin       String   @db.VarChar(2048)
-  questionId   String   @db.VarChar(100)
-  contentHash  String   @db.VarChar(100)
-  snapshotHash String   @db.VarChar(64)
-  category     String   @db.VarChar(300)
-  snapshot     Json
-  fetchedAt    DateTime
+  sourceId     String?  @db.VarChar(50)
+  origin       String?  @db.VarChar(2048)
+  questionId   String?  @db.VarChar(100)
+  contentHash  String?  @db.VarChar(100)
+  snapshotHash String?  @db.VarChar(64)
+  category     String?  @db.VarChar(300)
+  snapshot     Json?
+  fetchedAt    DateTime?
   checkStatus  String   @default("UNCHECKED") @db.VarChar(20)
   checkedAt    DateTime?
   imageKey     String?  @db.VarChar(200)
@@ -280,18 +315,48 @@ model QuizVideo {
 
   // A generated video is never published automatically; see verifySourceBeforePublication /
   // isPublicationBlocked (mission 7) for the check a future publication engine must call.
-  validationStatus QuizVideoValidationStatus @default(PENDING_APPROVAL)
+  validationStatus VideoValidationStatus @default(PENDING_APPROVAL)
   reviewedAt       DateTime?
   reviewedBy       String?  @db.VarChar(200)
   reviewComment    String?  @db.VarChar(2000)
 
-  scheduledSlot ScheduledQuizSlot?
+  scheduledSlot ScheduledSlot?
   socialPublications SocialPublication[]
-  publicLinks QuizVideoPublicLink[]
+  publicLinks VideoPublicLink[]
 
   @@index([projectId, createdAt])
+  @@index([programId, createdAt])
+  @@index([projectId, videoType, createdAt])
   @@index([status, id])
   @@index([sourceId, questionId])
+}
+
+// Programme = un type de vidéo activé dans un projet, avec son planning et ses paramètres.
+model Program {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  videoType   String   @db.VarChar(50)
+  name        String   @db.VarChar(200)
+  enabled     Boolean  @default(false)
+  // Heures locales (fuseau du projet) au format HH:mm.
+  slots       String[] @default([])
+  // Jours actifs, 1 = lundi … 7 = dimanche (ISO 8601).
+  daysOfWeek  Int[]    @default([1, 2, 3, 4, 5, 6, 7])
+  minDurationSeconds Int @default(30)
+  maxDurationSeconds Int @default(60)
+  // Nombre de jours d'avance avec lequel les vidéos sont générées (0 = à l'heure du créneau).
+  leadDays    Int      @default(1)
+  platforms   SocialPlatform[] @default([])
+  // Paramètres propres au type de vidéo, validés par le schéma du module.
+  params      Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  videos      Video[]
+  scheduledSlots ScheduledSlot[]
+
+  @@unique([projectId, name])
+  @@index([enabled])
 }
 
 enum ScheduledSlotStatus {
@@ -305,22 +370,25 @@ enum ScheduledSlotStatus {
 // is the idempotency and cross-instance-safety mechanism (mission 11) — a slot can only ever be
 // claimed once, by whichever scheduler tick (or instance) commits first. Never touches rendering
 // directly; a dispatched slot only ever calls requestQuizVideo (mission 10), nothing more.
-model ScheduledQuizSlot {
+model ScheduledSlot {
   id            String   @id @default(uuid()) @db.Uuid
   projectId     String   @db.Uuid
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  programId     String?  @db.Uuid
+  program       Program? @relation(fields: [programId], references: [id], onDelete: Restrict)
   scheduledDate DateTime @db.Date
   slotTime      String   @db.VarChar(5)
   language      String   @db.VarChar(10)
   status        ScheduledSlotStatus @default(PENDING)
-  quizVideoId   String?  @unique @db.Uuid
-  quizVideo     QuizVideo? @relation(fields: [quizVideoId], references: [id], onDelete: SetNull)
+  videoId       String?  @unique @db.Uuid
+  video         Video?   @relation(fields: [videoId], references: [id], onDelete: SetNull)
   reason        String?  @db.VarChar(500)
   scheduledAt   DateTime
   dispatchedAt  DateTime?
   createdAt     DateTime @default(now())
 
-  @@unique([projectId, scheduledDate, slotTime, language])
+  @@unique([programId, scheduledDate, slotTime])
+  @@index([projectId, scheduledDate])
   @@index([scheduledDate, status])
 }
 
@@ -328,6 +396,8 @@ enum SocialPlatform {
   TIKTOK
   INSTAGRAM
   FACEBOOK
+  YOUTUBE
+  SNAPCHAT
 }
 
 enum SocialConnectionStatus {
@@ -427,8 +497,8 @@ model SocialPublication {
   projectId       String   @db.Uuid
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
   requestId       String   @unique @db.Uuid
-  quizVideoId     String   @db.Uuid
-  quizVideo       QuizVideo @relation(fields: [quizVideoId], references: [id], onDelete: Restrict)
+  videoId         String   @db.Uuid
+  video           Video    @relation(fields: [videoId], references: [id], onDelete: Restrict)
   socialAccountId String   @db.Uuid
   socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Restrict)
   platform        SocialPlatform
@@ -452,7 +522,7 @@ model SocialPublication {
   attemptHistory  SocialPublicationAttempt[]
 
   @@index([projectId, status])
-  @@index([quizVideoId])
+  @@index([videoId])
   @@index([socialAccountId, status])
   @@index([status, scheduledAt])
   @@index([status, nextAttemptAt])
@@ -481,16 +551,16 @@ model SocialPublicationAttempt {
 // raw token lives only in the URL (never stored — only its hash, so a DB leak alone never yields a
 // usable link), is scoped to exactly one QuizVideo, expires quickly, and is revoked as soon as the
 // engine knows Meta either fetched it or will never need to (see revokePublicVideoLink call sites).
-model QuizVideoPublicLink {
+model VideoPublicLink {
   id          String    @id @default(uuid()) @db.Uuid
-  quizVideoId String    @db.Uuid
-  quizVideo   QuizVideo @relation(fields: [quizVideoId], references: [id], onDelete: Cascade)
+  videoId     String    @db.Uuid
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
   tokenHash   String    @unique @db.VarChar(64)
   createdAt   DateTime  @default(now())
   expiresAt   DateTime
   consumedAt  DateTime?
   revokedAt   DateTime?
 
-  @@index([quizVideoId])
+  @@index([videoId])
   @@index([expiresAt])
 }

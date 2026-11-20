@@ -4,7 +4,7 @@ import { closeJobs, Worker } from '@fako/jobs';
 import { createVideoQueue, dispatchPending, queueName, simulateVideoJob } from '@fako/video-jobs';
 import { logger } from './logger.js';
 import { startScriptWorker } from './script-worker.js';
-import { startQuizVideoWorker } from './quiz-video-worker.js';
+import { startVideoWorker } from './video-worker.js';
 import { startSocialPublicationWorker } from './social-publication-worker.js';
 
 function positiveInteger(name: string, fallback: number) {
@@ -16,7 +16,7 @@ function positiveInteger(name: string, fallback: number) {
 const prisma = createPrismaClient();
 const scriptWorker = startScriptWorker(prisma);
 const audioWorker = startAudioWorker(prisma);
-const quizVideoWorker = startQuizVideoWorker(prisma);
+const quizVideoWorker = startVideoWorker(prisma);
 const socialPublicationWorker = startSocialPublicationWorker(prisma);
 const queue = createVideoQueue();
 const worker = new Worker<{ videoJobId: string }>(queueName, async job => {

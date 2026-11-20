@@ -33,7 +33,7 @@ export function sampleDayReport(overrides: Partial<SchedulerDayReport> = {}): Sc
         date: '2026-01-15', planned: 6, jobsCreated: 5, generated: 3, waitingApproval: 2, approved: 1, rejected: 0,
         generationFailures: 0, schedulingFailures: 1, skipped: 0, byLanguage: { fr: 3, nl: 3 },
         questionsUsed: [{ language: 'fr', questionId: 'q-1', category: 'Priorité' }],
-        slots: [{ slotTime: '09:00', language: 'fr', status: 'DISPATCHED', reason: null, quizVideoId: 'vid-1', quizVideoStatus: 'WAITING_APPROVAL', validationStatus: 'PENDING_APPROVAL' }],
+        slots: [{ slotTime: '09:00', language: 'fr', status: 'DISPATCHED', reason: null, videoId: 'vid-1', quizVideoStatus: 'WAITING_APPROVAL', validationStatus: 'PENDING_APPROVAL' }],
         ...overrides
     };
 }
@@ -58,7 +58,7 @@ export function sampleCapabilities(overrides: Partial<SocialCapabilities> = {}):
 
 export function samplePublication(overrides: Partial<SocialPublication> = {}): SocialPublication {
     return {
-        id: 'pub-1', projectId: 'proj-1', requestId: 'req-pub-1', quizVideoId: 'vid-1', socialAccountId: 'social-1', platform: 'TIKTOK',
+        id: 'pub-1', projectId: 'proj-1', requestId: 'req-pub-1', videoId: 'vid-1', socialAccountId: 'social-1', platform: 'TIKTOK',
         language: 'fr', caption: 'Le quiz du jour !', hashtags: ['#codederoute'], status: 'DRAFT', scheduledAt: null,
         attempts: 0, lastAttemptAt: null, remotePostId: null, remoteUrl: null, lastError: null, createdBy: 'admin',
         cancelledAt: null, cancelledBy: null, publishedAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -193,7 +193,7 @@ export class FakeApiClient implements ApiClient {
         const existing = [...this.publications.values()].find(p => p.requestId === input.requestId);
         if (existing) return existing;
         const publication = samplePublication({
-            id: `pub-${this.publications.size + 1}`, projectId, requestId: input.requestId, quizVideoId: input.quizVideoId,
+            id: `pub-${this.publications.size + 1}`, projectId, requestId: input.requestId, videoId: input.videoId,
             socialAccountId: input.socialAccountId, language: input.language, caption: input.caption, hashtags: input.hashtags ?? [],
             status: input.scheduledAtLocal ? 'SCHEDULED' : 'DRAFT', scheduledAt: input.scheduledAtLocal ? new Date(input.scheduledAtLocal).toISOString() : null,
             createdBy: input.createdBy

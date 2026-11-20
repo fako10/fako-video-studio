@@ -1,5 +1,5 @@
 import type { ContentSourceProvider, Language, SourceQuestion } from '@fako/content-sources';
-import { QuizVideoRequestError } from './errors.js';
+import { QuizVideoRequestError } from '../errors.js';
 import type { UsageStats } from './rotation.js';
 
 export type SelectQuestionOptions = { questionId?: string; usage?: UsageStats };

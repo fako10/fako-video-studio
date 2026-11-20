@@ -1,5 +1,5 @@
 {
-  "name": "@fako/quiz-pipeline",
+  "name": "@fako/video-pipeline",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,12 +16,13 @@
   "dependencies": {
     "@fako/ai-providers": "0.1.0",
     "@fako/content-sources": "0.1.0",
+    "@fako/jobs": "0.1.0",
     "@fako/media-engine": "0.1.0",
     "@fako/video-jobs": "0.1.0",
     "@fako/video-templates": "0.1.0",
+    "@fako/video-types": "0.1.0",
     "@prisma/client": "6.19.3",
-    "@remotion/renderer": "4.0.536",
-    "@fako/jobs": "0.1.0"
+    "@remotion/renderer": "4.0.536"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

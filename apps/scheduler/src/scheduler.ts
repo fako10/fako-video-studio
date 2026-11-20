@@ -1,6 +1,6 @@
 import { createPrismaClient } from '@fako/db';
-import { runSchedulerTick } from '@fako/quiz-pipeline';
-import { loadProviderAndStorage, loadSchedulerConfig, projectSlug } from './config.js';
+import { runProgramsTick } from '@fako/video-pipeline';
+import { loadRequestDeps, loadSchedulerConfig } from './config.js';
 import { logger } from './logger.js';
 
 if ((process.env.SCHEDULER_ENABLED ?? 'false') !== 'true') {
@@ -9,25 +9,20 @@ if ((process.env.SCHEDULER_ENABLED ?? 'false') !== 'true') {
 }
 
 const config = loadSchedulerConfig();
-const { provider, mediaStorage } = loadProviderAndStorage();
-if (!provider) throw new Error('Scheduler enabled but no RijPermis content source is configured (RIJPERMIS_API_ENABLED / RIJPERMIS_MOCK_MODE)');
-
+const deps = loadRequestDeps();
 const prisma = createPrismaClient();
-const project = await prisma.project.findUnique({ where: { slug: projectSlug } });
-if (!project) throw new Error(`Project with slug "${projectSlug}" not found; run db:seed first`);
 
 let ticking = false;
 async function tick() {
     if (ticking) return;
     ticking = true;
     try {
-        // Validated once at startup, above; this closure just can't see that narrowing.
-        const outcomes = await runSchedulerTick(prisma, provider!, mediaStorage, project!.id, config);
+        const outcomes = await runProgramsTick(prisma, deps, config);
         for (const outcome of outcomes) {
-            const context = { scheduledDate: outcome.scheduledDate, slotTime: outcome.slotTime, language: outcome.language };
+            const context = { programId: outcome.programId, videoType: outcome.videoType, scheduledDate: outcome.scheduledDate, slotTime: outcome.slotTime, language: outcome.language };
             if (outcome.status === 'FAILED') logger.error({ ...context, reason: outcome.reason }, 'Scheduler slot failed');
             else if (outcome.status === 'SKIPPED') logger.warn({ ...context, reason: outcome.reason }, 'Scheduler slot skipped');
-            else if (outcome.status === 'DISPATCHED') logger.info({ ...context, quizVideoId: outcome.quizVideoId }, 'Scheduler slot dispatched');
+            else if (outcome.status === 'DISPATCHED') logger.info({ ...context, videoId: outcome.videoId }, 'Scheduler slot dispatched');
         }
     } catch (error) {
         logger.error({ err: error instanceof Error ? error.message : String(error) }, 'Scheduler tick failed; will retry on the next tick');

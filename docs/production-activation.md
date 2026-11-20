@@ -1,5 +1,7 @@
 # Bascule de la simulation vers la production réelle
 
+> **Note (refonte 2026)** : ce document décrit une mission antérieure. Depuis l'étape 1, Docker, Redis et BullMQ sont remplacés par PostgreSQL seul (file de tâches `@fako/jobs`, basée sur pg-boss). Depuis l'étape 2, les tables `QuizVideo`, `ScheduledQuizSlot` et `QuizVideoPublicLink` s'appellent `Video`, `ScheduledSlot` et `VideoPublicLink`, et la planification se fait par programme. Voir [architecture.md](architecture.md).
+
 Ce document décrit comment faire évoluer le déploiement VPS **mission 16** (100 % simulation :
 contenu mock, TTS mock, publication mock, aucun appel réseau réel, aucun coût) vers une diffusion
 réelle sur TikTok/Instagram/Facebook. **Aucune de ces étapes n'a été activée par la mission 16** —

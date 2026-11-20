@@ -1,5 +1,7 @@
 # Voix off — Mission 5
 
+> **Note (refonte 2026)** : ce document décrit une mission antérieure. Depuis l'étape 1, Docker, Redis et BullMQ sont remplacés par PostgreSQL seul (file de tâches `@fako/jobs`, basée sur pg-boss). Depuis l'étape 2, les tables `QuizVideo`, `ScheduledQuizSlot` et `QuizVideoPublicLink` s'appellent `Video`, `ScheduledSlot` et `VideoPublicLink`, et la planification se fait par programme. Voir [architecture.md](architecture.md).
+
 Cette étape produit uniquement un fichier audio depuis la narration d'une version de scénario explicitement approuvée. Elle ne lance aucun rendu vidéo et ne publie rien. Le pipeline OpenAI reste indépendant et `/health` est conservé.
 
 ## Installation et démarrage local (PowerShell)

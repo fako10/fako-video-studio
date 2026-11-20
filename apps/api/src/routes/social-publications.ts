@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
-import { zonedTimeToUtc } from '@fako/quiz-pipeline';
+import { zonedTimeToUtc } from '@fako/video-pipeline';
 import { cancelPublication, retryPublication, schedulePublication, updatePublicationSchedule } from '@fako/social-publishing';
 
 const uuid = { type: 'string', format: 'uuid' };
@@ -33,13 +33,13 @@ export const socialPublicationRoutes: FastifyPluginAsync<{ prisma: PrismaClient;
     });
 
     app.post<{ Params: { id: string }; Body: {
-        quizVideoId: string; socialAccountId: string; language: 'fr' | 'nl'; caption: string; hashtags?: string[];
+        videoId: string; socialAccountId: string; language: 'fr' | 'nl'; caption: string; hashtags?: string[];
         scheduledAtLocal?: string; requestId: string; createdBy: string;
     } }>('/projects/:id/social-publications', {
         schema: { params: projectParams, body: { type: 'object', additionalProperties: false,
-            required: ['quizVideoId', 'socialAccountId', 'language', 'caption', 'requestId', 'createdBy'],
+            required: ['videoId', 'socialAccountId', 'language', 'caption', 'requestId', 'createdBy'],
             properties: {
-                quizVideoId: uuid, socialAccountId: uuid, language: { type: 'string', enum: ['fr', 'nl'] },
+                videoId: uuid, socialAccountId: uuid, language: { type: 'string', enum: ['fr', 'nl'] },
                 caption: { type: 'string', minLength: 1, maxLength: 2200 },
                 hashtags: { type: 'array', items: { type: 'string', maxLength: 100 }, maxItems: 30 },
                 scheduledAtLocal: localDateTime, requestId: uuid,
@@ -47,7 +47,7 @@ export const socialPublicationRoutes: FastifyPluginAsync<{ prisma: PrismaClient;
             } } }
     }, async (request, reply) => {
         const { publication, created } = await schedulePublication(prisma, {
-            projectId: request.params.id, quizVideoId: request.body.quizVideoId, socialAccountId: request.body.socialAccountId,
+            projectId: request.params.id, videoId: request.body.videoId, socialAccountId: request.body.socialAccountId,
             language: request.body.language, caption: request.body.caption, hashtags: request.body.hashtags,
             scheduledAt: request.body.scheduledAtLocal ? parseLocalDateTime(request.body.scheduledAtLocal) : undefined,
             requestId: request.body.requestId, createdBy: request.body.createdBy
@@ -56,20 +56,20 @@ export const socialPublicationRoutes: FastifyPluginAsync<{ prisma: PrismaClient;
     });
 
     app.get<{ Params: { id: string }; Querystring: {
-        status?: string; platform?: string; quizVideoId?: string; limit?: string; offset?: string;
+        status?: string; platform?: string; videoId?: string; limit?: string; offset?: string;
     } }>('/projects/:id/social-publications', {
         schema: { params: projectParams, querystring: { type: 'object', additionalProperties: false, properties: {
             status: { type: 'string', enum: publicationStatuses }, platform: { type: 'string', enum: ['TIKTOK', 'INSTAGRAM', 'FACEBOOK'] },
-            quizVideoId: uuid, limit: { type: 'string', pattern: '^([1-9]|[1-9][0-9]|100)$' }, offset: { type: 'string', pattern: '^(0|[1-9][0-9]{0,8})$' }
+            videoId: uuid, limit: { type: 'string', pattern: '^([1-9]|[1-9][0-9]|100)$' }, offset: { type: 'string', pattern: '^(0|[1-9][0-9]{0,8})$' }
         } } }
     }, async (request, reply) => {
         if (!await prisma.project.findUnique({ where: { id: request.params.id }, select: { id: true } })) {
             return reply.code(404).send({ error: 'Project not found' });
         }
-        const { status, platform, quizVideoId } = request.query;
+        const { status, platform, videoId } = request.query;
         const where = {
             projectId: request.params.id, ...(status ? { status: status as never } : {}),
-            ...(platform ? { platform: platform as never } : {}), ...(quizVideoId ? { quizVideoId } : {})
+            ...(platform ? { platform: platform as never } : {}), ...(videoId ? { videoId } : {})
         };
         const [socialPublications, total] = await prisma.$transaction([
             prisma.socialPublication.findMany({ where, take: Number(request.query.limit ?? 20), skip: Number(request.query.offset ?? 0), orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),

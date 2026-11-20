@@ -42,7 +42,7 @@ ${canReview ? `
 
 ${v.status === 'COMPLETED' ? `
 <div class="actions">
-  <a class="button" href="/admin/publications/new?quizVideoId=${v.id}">Programmer une publication</a>
+  <a class="button" href="/admin/publications/new?videoId=${v.id}">Programmer une publication</a>
 </div>
 ` : ''}
 

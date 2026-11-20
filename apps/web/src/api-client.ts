@@ -22,7 +22,7 @@ export type SchedulerDayReport = {
     approved: number; rejected: number; generationFailures: number; schedulingFailures: number; skipped: number;
     byLanguage: { fr: number; nl: number };
     questionsUsed: { language: string; questionId: string; category: string }[];
-    slots: { slotTime: string; language: string; status: string; reason: string | null; quizVideoId: string | null; quizVideoStatus: string | null; validationStatus: string | null }[];
+    slots: { slotTime: string; language: string; status: string; reason: string | null; videoId: string | null; quizVideoStatus: string | null; validationStatus: string | null }[];
 };
 
 // status/contentRange let the admin server mirror the API's own 200/206/416 Range response instead
@@ -57,7 +57,7 @@ export type SocialPublicationAttempt = {
 };
 
 export type SocialPublication = {
-    id: string; projectId: string; requestId: string; quizVideoId: string; socialAccountId: string; platform: SocialPlatform;
+    id: string; projectId: string; requestId: string; videoId: string; socialAccountId: string; platform: SocialPlatform;
     language: string; caption: string; hashtags: string[]; status: SocialPublicationStatus; scheduledAt: string | null;
     attempts: number; lastAttemptAt: string | null; remotePostId: string | null; remoteUrl: string | null; lastError: string | null;
     createdBy: string; cancelledAt: string | null; cancelledBy: string | null; publishedAt: string | null;
@@ -65,10 +65,10 @@ export type SocialPublication = {
 };
 
 export type SocialPublicationList = { socialPublications: SocialPublication[]; total: number };
-export type SocialPublicationFilters = { status?: SocialPublicationStatus; platform?: SocialPlatform; quizVideoId?: string; limit?: number; offset?: number };
+export type SocialPublicationFilters = { status?: SocialPublicationStatus; platform?: SocialPlatform; videoId?: string; limit?: number; offset?: number };
 
 export type SchedulePublicationInput = {
-    quizVideoId: string; socialAccountId: string; language: string; caption: string; hashtags?: string[];
+    videoId: string; socialAccountId: string; language: string; caption: string; hashtags?: string[];
     scheduledAtLocal?: string; requestId: string; createdBy: string;
 };
 
@@ -200,7 +200,7 @@ export class HttpApiClient implements ApiClient {
         const params = new URLSearchParams();
         if (filters.status) params.set('status', filters.status);
         if (filters.platform) params.set('platform', filters.platform);
-        if (filters.quizVideoId) params.set('quizVideoId', filters.quizVideoId);
+        if (filters.videoId) params.set('videoId', filters.videoId);
         params.set('limit', String(filters.limit ?? 20));
         params.set('offset', String(filters.offset ?? 0));
         return (await this.request(`/projects/${projectId}/social-publications?${params.toString()}`)).json();

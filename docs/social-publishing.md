@@ -1,5 +1,7 @@
 # Moteur de publication programmée — TikTok, Instagram, Facebook (Mission 14)
 
+> **Note (refonte 2026)** : ce document décrit une mission antérieure. Depuis l'étape 1, Docker, Redis et BullMQ sont remplacés par PostgreSQL seul (file de tâches `@fako/jobs`, basée sur pg-boss). Depuis l'étape 2, les tables `QuizVideo`, `ScheduledQuizSlot` et `QuizVideoPublicLink` s'appellent `Video`, `ScheduledSlot` et `VideoPublicLink`, et la planification se fait par programme. Voir [architecture.md](architecture.md).
+
 Cette mission construit le moteur qui publie réellement une vidéo RijPermis approuvée sur TikTok,
 Instagram ou une Page Facebook, à une date programmée, avec vérification en direct juste avant
 l'envoi. **Aucune publication réelle n'a été effectuée** dans le cadre de cette mission — tout a été
@@ -12,7 +14,7 @@ exercé en mode mock/dry-run, conformément à la consigne.
   développement. Étendu plutôt que réécrit : `SocialPlatformConnector` gagne `publishVideo()` et
   `getPublicationStatus()`, implémentées dans les trois adaptateurs existants.
 - `verifyQuizVideoBeforePublication` et `isPublicationBlocked` (missions 7/10, `@fako/video-jobs` /
-  `@fako/quiz-pipeline`) existaient déjà, prêts à être appelés par un futur moteur — c'est exactement
+  `@fako/video-pipeline`) existaient déjà, prêts à être appelés par un futur moteur — c'est exactement
   ce que fait `verifyBeforeSend` (`@fako/social-publishing/verify.ts`), en direct, jamais en se fiant
   au `checkStatus` déjà enregistré.
 - Le scheduler de génération (mission 11, `packages/quiz-pipeline/src/scheduler.ts`) fournissait le

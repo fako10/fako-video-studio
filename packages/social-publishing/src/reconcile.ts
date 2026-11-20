@@ -41,7 +41,7 @@ export async function reconcileInFlightPublications(prisma: PrismaClient, deps: 
             if (status.outcome === 'PUBLISHED') {
                 // Terminal: the platform (Instagram's FINISHED+media_publish, in practice) confirms
                 // it already fetched the video — any public link for it is safe to revoke now.
-                await revokePublicVideoLinksForQuizVideo(prisma, row.quizVideoId);
+                await revokePublicVideoLinksForQuizVideo(prisma, row.videoId);
                 await prisma.socialPublication.update({ where: { id: row.id }, data: {
                     status: 'PUBLISHED', remotePostId: status.remotePostId, remoteUrl: status.remoteUrl ?? null, publishedAt: now, lastError: null
                 } });
@@ -51,7 +51,7 @@ export async function reconcileInFlightPublications(prisma: PrismaClient, deps: 
                 // afterwards (retryPublication only ever accepts a confirmed FAILED, never OUTCOME_UNKNOWN).
                 // A confirmed failure (incl. the container's own 24h EXPIRED) means Meta will never
                 // fetch this link again either way.
-                await revokePublicVideoLinksForQuizVideo(prisma, row.quizVideoId);
+                await revokePublicVideoLinksForQuizVideo(prisma, row.videoId);
                 await prisma.socialPublication.update({ where: { id: row.id }, data: { status: 'FAILED', lastError: status.message.slice(0, 2000) } });
                 outcomes.push({ publicationId: row.id, result: 'FAILED' });
             } else if (stale) {

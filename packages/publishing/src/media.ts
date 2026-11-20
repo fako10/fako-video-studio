@@ -38,7 +38,9 @@ function validateMetaVertical(media: MediaDescriptor, platformLabel: string): Me
     return { ok: true, errors: [], warnings };
 }
 
-export function validateMediaRequirements(platform: 'TIKTOK' | 'INSTAGRAM' | 'FACEBOOK', media: MediaDescriptor): MediaValidationResult {
+export function validateMediaRequirements(platform: 'TIKTOK' | 'INSTAGRAM' | 'FACEBOOK' | 'YOUTUBE' | 'SNAPCHAT', media: MediaDescriptor): MediaValidationResult {
     if (platform === 'TIKTOK') return validateTikTok(media);
-    return validateMetaVertical(media, platform === 'INSTAGRAM' ? 'Instagram' : 'Facebook Pages');
+    // YouTube Shorts / Snapchat : contraintes précises vérifiées à l'étape 6 ; avertissements seulement d'ici là.
+    const labels = { INSTAGRAM: 'Instagram', FACEBOOK: 'Facebook Pages', YOUTUBE: 'YouTube Shorts', SNAPCHAT: 'Snapchat' } as const;
+    return validateMetaVertical(media, labels[platform]);
 }

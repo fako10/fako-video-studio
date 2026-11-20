@@ -11,7 +11,7 @@ import { MockTTSProvider } from '@fako/ai-providers';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion } from '@fako/content-sources';
 import { LocalVideoStorage } from '@fako/media-engine';
 import { mockConnectors } from '@fako/publishing';
-import { generateQuizVideo, requestQuizVideo, reviewQuizVideo, type QuizVideoDeps, type RenderAndMeasure } from '@fako/quiz-pipeline';
+import { generateQuizVideo, requestQuizVideo, reviewQuizVideo, type QuizVideoDeps, type RenderAndMeasure } from '@fako/video-pipeline';
 import {
     createSocialPublicationQueue, dispatchSocialPublications, reconcileInFlightPublications,
     retryPublication, runPublicationAttempt, runSocialPublicationSchedulerTick, schedulePublication,
@@ -70,7 +70,7 @@ async function cleanup(prisma: PrismaClient, projectId: string, dirs: Awaited<Re
     await prisma.socialPublicationAttempt.deleteMany({ where: { publication: { projectId } } });
     await prisma.socialPublication.deleteMany({ where: { projectId } });
     await prisma.socialAccount.deleteMany({ where: { projectId } });
-    await prisma.quizVideo.deleteMany({ where: { projectId } });
+    await prisma.video.deleteMany({ where: { projectId } });
     await prisma.projectVoice.deleteMany({ where: { projectId } });
     await prisma.projectSettings.deleteMany({ where: { projectId } });
     await prisma.project.delete({ where: { id: projectId } });
@@ -97,7 +97,7 @@ test('full success lifecycle: schedule via HTTP (DST-safe local time), due, veri
 
         // 2026-07-01 09:00 Europe/Brussels is CEST (UTC+2) — a real DST check, not just a label.
         const create = await app.inject({ method: 'POST', url: `/projects/${project.id}/social-publications`, headers, payload: {
-            quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Le quiz du jour !', hashtags: ['#codederoute'],
+            videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Le quiz du jour !', hashtags: ['#codederoute'],
             scheduledAtLocal: '2026-07-01T09:00', requestId: randomUUID(), createdBy: 'admin'
         } });
         assert.equal(create.statusCode, 201, create.payload);
@@ -107,7 +107,7 @@ test('full success lifecycle: schedule via HTTP (DST-safe local time), due, veri
 
         // Idempotent resubmission with the same requestId must not create a second row.
         const resubmit = await app.inject({ method: 'POST', url: `/projects/${project.id}/social-publications`, headers, payload: {
-            quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Le quiz du jour !',
+            videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Le quiz du jour !',
             scheduledAtLocal: '2026-07-01T09:00', requestId: create.json().requestId, createdBy: 'admin'
         } });
         assert.equal(resubmit.statusCode, 200);
@@ -120,7 +120,7 @@ test('full success lifecycle: schedule via HTTP (DST-safe local time), due, veri
 
         // Not due yet: a tick before the scheduled instant must promote nothing.
         const other = await app.inject({ method: 'POST', url: `/projects/${project.id}/social-publications`, headers, payload: {
-            quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Autre', scheduledAtLocal: '2026-07-01T10:00', requestId: randomUUID(), createdBy: 'admin'
+            videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Autre', scheduledAtLocal: '2026-07-01T10:00', requestId: randomUUID(), createdBy: 'admin'
         } });
         const earlyTick = await runSocialPublicationSchedulerTick(prisma, { maxInFlight: 20 }, new Date('2026-07-01T07:30:00.000Z'));
         assert.equal(earlyTick.promoted, 0);
@@ -136,7 +136,7 @@ test('full success lifecycle: schedule via HTTP (DST-safe local time), due, veri
 
         // Dedup: a second publication to the exact same (video, account) destination is blocked.
         const dupe = await schedulePublication(prisma, {
-            projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Doublon', requestId: randomUUID(), createdBy: 'admin'
+            projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Doublon', requestId: randomUUID(), createdBy: 'admin'
         });
         await prisma.socialPublication.update({ where: { id: dupe.publication.id }, data: { status: 'READY' } });
         await assert.rejects(runPublicationAttempt(prisma, dupe.publication.id, engineDeps(dirs, provider, encryptionKey), { attempt: 1, maxAttempts: 5 }));
@@ -161,7 +161,7 @@ test('scheduling is refused outright for an unapproved or ungenerated video — 
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
 
         const result = await app.inject({ method: 'POST', url: `/projects/${project.id}/social-publications`, headers, payload: {
-            quizVideoId: quizVideo.id, socialAccountId: account.id, language: 'fr', caption: 'Trop tôt', requestId: randomUUID(), createdBy: 'admin'
+            videoId: quizVideo.id, socialAccountId: account.id, language: 'fr', caption: 'Trop tôt', requestId: randomUUID(), createdBy: 'admin'
         } });
         assert.equal(result.statusCode, 409);
         assert.equal(await prisma.socialPublication.count({ where: { projectId: project.id } }), 0);
@@ -178,7 +178,7 @@ test('a live RijPermis check that finds the question withdrawn blocks the send, 
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         // The provider no longer has this question at send time — simulates it being withdrawn from
@@ -204,7 +204,7 @@ test('insufficient permissions blocks with a clear diagnostic (missing publish s
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
         assert.equal(account.status, 'INSUFFICIENT_PERMISSIONS', 'INSUFFICIENT_SCOPES mock never grants the publish scope');
 
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         await assert.rejects(runPublicationAttempt(prisma, publication.id, engineDeps(dirs, provider, encryptionKey, { connectors: mockConnectors('INSUFFICIENT_SCOPES') }), { attempt: 1, maxAttempts: 5 }));
@@ -224,7 +224,7 @@ test('a language revoked from the account after scheduling blocks the send at ve
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id, 'fr');
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         // The admin removes FR from this destination's allowed languages after scheduling but before send.
@@ -247,7 +247,7 @@ test('a confirmed platform rejection retries once (retryable) then fails termina
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         const deps = engineDeps(dirs, provider, encryptionKey, { connectors: mockConnectors('FULL_ACCESS', 'RATE_LIMITED') });
@@ -271,7 +271,7 @@ test('an ambiguous send (thrown exception) never resolves to FAILED or PUBLISHED
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         const deps = engineDeps(dirs, provider, encryptionKey, { connectors: mockConnectors('FULL_ACCESS', 'TIMEOUT') });
@@ -298,7 +298,7 @@ test('a crash before any platform acknowledgment is reconciled to OUTCOME_UNKNOW
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         // Simulate a worker that died immediately after claiming (PUBLISHING, no remotePostId yet, stale lastAttemptAt).
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'PUBLISHING', lastAttemptAt: new Date(Date.now() - 10_000) } });
 
@@ -318,7 +318,7 @@ test('an acknowledged async publish (PENDING) is resolved to PUBLISHED by reconc
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         const connectors = mockConnectors('FULL_ACCESS', 'PENDING_THEN_SUCCESS');
@@ -344,7 +344,7 @@ test('cancel is only ever accepted before a publication has started, and retry o
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
 
         const cancelled = await app.inject({ method: 'POST', url: `/social-publications/${publication.id}/cancel`, headers, payload: { cancelledBy: 'admin' } });
         assert.equal(cancelled.statusCode, 200);
@@ -356,7 +356,7 @@ test('cancel is only ever accepted before a publication has started, and retry o
         const retryCancelled = await app.inject({ method: 'POST', url: `/social-publications/${publication.id}/retry`, headers });
         assert.equal(retryCancelled.statusCode, 409, 'a cancelled publication can never be retried');
 
-        const published = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'y', requestId: randomUUID(), createdBy: 'admin' });
+        const published = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'y', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: published.publication.id }, data: { status: 'PUBLISHED' } });
         const cancelPublished = await app.inject({ method: 'POST', url: `/social-publications/${published.publication.id}/cancel`, headers, payload: { cancelledBy: 'admin' } });
         assert.equal(cancelPublished.statusCode, 409, 'a published publication can never be cancelled');
@@ -373,7 +373,7 @@ test('updating the schedule only works before a publication is due, and reuses t
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
 
         // 2026-01-15 is winter time (CET, UTC+1) — different offset from the summer-time test above.
         const updated = await app.inject({ method: 'PATCH', url: `/social-publications/${publication.id}`, headers, payload: { scheduledAtLocal: '2026-01-15T21:00' } });
@@ -399,7 +399,7 @@ test('the scheduler tick never promotes more than maxInFlight at once, bounding 
         const dueAt = new Date('2026-07-01T07:00:00.000Z');
         for (let i = 0; i < 3; i++) {
             const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
-            const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: `v${i}`, scheduledAt: dueAt, requestId: randomUUID(), createdBy: 'admin' });
+            const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: `v${i}`, scheduledAt: dueAt, requestId: randomUUID(), createdBy: 'admin' });
             void publication;
         }
         const tick = await runSocialPublicationSchedulerTick(prisma, { maxInFlight: 2 }, new Date('2026-07-01T07:00:01.000Z'));
@@ -420,7 +420,7 @@ test('dispatch enqueues exactly one BullMQ job per READY row, idempotently, on t
     try {
         const video = await approvedQuizVideo(prisma, provider, dirs, project.id);
         const account = await connectedAccount(app, project.id, 'TIKTOK', ['fr']);
-        const { publication } = await schedulePublication(prisma, { projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
+        const { publication } = await schedulePublication(prisma, { projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'x', requestId: randomUUID(), createdBy: 'admin' });
         await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });
 
         assert.equal(socialPublicationQueueName, 'social-publications');
@@ -457,7 +457,7 @@ test('a mock publication succeeds end to end on every platform (TikTok, Instagra
             assert.equal(account.status, 'CONNECTED');
 
             const { publication } = await schedulePublication(prisma, {
-                projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr',
+                projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr',
                 caption: `Quiz mock ${platform}`, requestId: randomUUID(), createdBy: 'admin'
             });
             await prisma.socialPublication.update({ where: { id: publication.id }, data: { status: 'READY' } });

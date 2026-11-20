@@ -21,7 +21,7 @@ export async function schedulePublication(prisma: PrismaClient, input: ScheduleP
     const caption = input.caption.trim();
     if (!caption || caption.length > MAX_CAPTION_LENGTH) throw new SocialPublicationRequestError(400, `La légende doit faire entre 1 et ${MAX_CAPTION_LENGTH} caractères`);
 
-    const quizVideo = await prisma.quizVideo.findUnique({ where: { id: input.quizVideoId } });
+    const quizVideo = await prisma.video.findUnique({ where: { id: input.videoId } });
     if (!quizVideo || quizVideo.projectId !== input.projectId) throw new SocialPublicationRequestError(404, 'Vidéo introuvable pour ce projet');
     if (quizVideo.validationStatus !== 'APPROVED' || quizVideo.status !== 'COMPLETED') {
         throw new SocialPublicationRequestError(409, 'Seule une vidéo approuvée et générée peut être programmée pour publication');
@@ -33,7 +33,7 @@ export async function schedulePublication(prisma: PrismaClient, input: ScheduleP
 
     try {
         const publication = await prisma.socialPublication.create({ data: {
-            projectId: input.projectId, requestId: input.requestId, quizVideoId: input.quizVideoId, socialAccountId: input.socialAccountId,
+            projectId: input.projectId, requestId: input.requestId, videoId: input.videoId, socialAccountId: input.socialAccountId,
             platform: account.platform, language: input.language, caption, hashtags: input.hashtags ?? [],
             status: input.scheduledAt ? 'SCHEDULED' : 'DRAFT', scheduledAt: input.scheduledAt ?? null, createdBy: input.createdBy
         } });

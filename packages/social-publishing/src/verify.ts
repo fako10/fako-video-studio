@@ -1,5 +1,5 @@
 import type { PrismaClient, SocialPublication } from '@prisma/client';
-import { isPublicationBlocked, verifyQuizVideoBeforePublication } from '@fako/quiz-pipeline';
+import { isPublicationBlocked, verifyQuizVideoBeforePublication } from '@fako/video-pipeline';
 import { decryptSecret, PUBLISH_SCOPE_BY_PLATFORM, validatePublicationReadiness, type MediaDescriptor } from '@fako/publishing';
 import type { PublicationEngineDeps, VerificationResult } from './types.js';
 
@@ -12,7 +12,7 @@ export async function verifyBeforeSend(prisma: PrismaClient, publication: Social
     const reasons: string[] = [];
 
     const [quizVideo, account, settings] = await Promise.all([
-        prisma.quizVideo.findUnique({ where: { id: publication.quizVideoId } }),
+        prisma.video.findUnique({ where: { id: publication.videoId } }),
         prisma.socialAccount.findUnique({ where: { id: publication.socialAccountId } }),
         prisma.projectSettings.findUnique({ where: { projectId: publication.projectId } })
     ]);
@@ -50,7 +50,7 @@ export async function verifyBeforeSend(prisma: PrismaClient, publication: Social
 
     // 8) Dedup — never publish the same video twice to the exact same destination.
     const alreadyPublished = await prisma.socialPublication.findFirst({
-        where: { quizVideoId: publication.quizVideoId, socialAccountId: publication.socialAccountId, status: 'PUBLISHED', NOT: { id: publication.id } }
+        where: { videoId: publication.videoId, socialAccountId: publication.socialAccountId, status: 'PUBLISHED', NOT: { id: publication.id } }
     });
     if (alreadyPublished) reasons.push('Cette vidéo est déjà publiée avec succès sur cette destination (doublon évité)');
 

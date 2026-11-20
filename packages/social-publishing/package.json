@@ -16,7 +16,7 @@
   "dependencies": {
     "@fako/content-sources": "0.1.0",
     "@fako/publishing": "0.1.0",
-    "@fako/quiz-pipeline": "0.1.0",
+    "@fako/video-pipeline": "0.1.0",
     "@fako/video-jobs": "0.1.0",
     "@prisma/client": "6.19.3",
     "@fako/jobs": "0.1.0"

@@ -15,7 +15,7 @@
     "@fako/jobs": "0.1.0",
     "@fako/media-engine": "0.1.0",
     "@fako/publishing": "0.1.0",
-    "@fako/quiz-pipeline": "0.1.0",
+    "@fako/video-pipeline": "0.1.0",
     "@fako/social-publishing": "0.1.0",
     "@fako/video-jobs": "0.1.0",
     "@prisma/client": "6.19.3",

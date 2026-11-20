@@ -10,7 +10,7 @@ export interface VideoBytesReader {
 
 export type SchedulePublicationInput = {
     projectId: string;
-    quizVideoId: string;
+    videoId: string;
     socialAccountId: string;
     language: string;
     caption: string;

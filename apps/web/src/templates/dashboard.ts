@@ -39,7 +39,7 @@ export function dashboardPage(options: { username: string; date: string; report:
           <td data-label="Créneau">${escapeHtml(slot.slotTime)}</td>
           <td data-label="Langue">${escapeHtml(slot.language.toUpperCase())}</td>
           <td data-label="Statut">${statusPill(slot.status)}</td>
-          <td data-label="Détail">${slot.quizVideoId ? `<a href="/admin/quiz-videos/${slot.quizVideoId}">Voir la vidéo</a>` : escapeHtml(slot.reason ?? '—')}</td>
+          <td data-label="Détail">${slot.videoId ? `<a href="/admin/quiz-videos/${slot.videoId}">Voir la vidéo</a>` : escapeHtml(slot.reason ?? '—')}</td>
         </tr>`).join('')}
       </tbody>
     </table>

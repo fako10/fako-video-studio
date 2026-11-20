@@ -11,7 +11,7 @@ import { MockTTSProvider } from '@fako/ai-providers';
 import { LocalMediaStorage, MockContentSourceProvider, mockQuestion } from '@fako/content-sources';
 import { LocalVideoStorage } from '@fako/media-engine';
 import { mockConnectors } from '@fako/publishing';
-import { generateQuizVideo, requestQuizVideo, reviewQuizVideo, type QuizVideoDeps, type RenderAndMeasure } from '@fako/quiz-pipeline';
+import { generateQuizVideo, requestQuizVideo, reviewQuizVideo, type QuizVideoDeps, type RenderAndMeasure } from '@fako/video-pipeline';
 import {
     createPublicVideoLink, resolvePublicVideoLink, revokePublicVideoLinksForQuizVideo,
     runPublicationAttempt, schedulePublication, type PublicationEngineDeps
@@ -81,8 +81,8 @@ test('a fake Meta client can fetch exactly the linked video, unauthenticated, an
         assert.equal((await app.inject({ method: 'GET', url: `/quiz-videos/${video.id}` })).statusCode, 401);
         assert.equal((await app.inject({ method: 'GET', url: `/quiz-videos/${video.id}`, headers })).statusCode, 200);
     } finally {
-        await prisma.quizVideoPublicLink.deleteMany({ where: { quizVideo: { projectId: project.id } } });
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.videoPublicLink.deleteMany({ where: { video: { projectId: project.id } } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.projectSettings.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
@@ -131,8 +131,8 @@ test('unknown, malformed, expired and revoked tokens all return the same generic
         assert.equal((await disabledApp.inject({ url: `/public/quiz-video-links/${freshToken}` })).statusCode, 404);
         await disabledApp.close();
     } finally {
-        await prisma.quizVideoPublicLink.deleteMany({ where: { quizVideo: { projectId: project.id } } });
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.videoPublicLink.deleteMany({ where: { video: { projectId: project.id } } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.projectSettings.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });
@@ -157,7 +157,7 @@ test('the publication engine mints an Instagram-only public link, passes it to t
         await app.inject({ method: 'PATCH', url: `/social-accounts/${account.id}`, headers, payload: { languages: ['fr'] } });
 
         const { publication: scheduled } = await schedulePublication(prisma, {
-            projectId: project.id, quizVideoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Quiz Instagram',
+            projectId: project.id, videoId: video.id, socialAccountId: account.id, language: 'fr', caption: 'Quiz Instagram',
             requestId: randomUUID(), createdBy: 'admin'
         });
         await prisma.socialPublication.update({ where: { id: scheduled.id }, data: { status: 'READY' } });
@@ -200,7 +200,7 @@ test('the publication engine mints an Instagram-only public link, passes it to t
         const blocked = await prisma.socialPublication.findUniqueOrThrow({ where: { id: scheduled.id } });
         assert.equal(blocked.status, 'BLOCKED');
         assert.equal(capturedUrl, undefined);
-        assert.equal(await prisma.quizVideoPublicLink.count({ where: { quizVideoId: video.id } }), 0);
+        assert.equal(await prisma.videoPublicLink.count({ where: { videoId: video.id } }), 0);
 
         // 2) With publicLinkBaseUrl configured: a link is minted and reaches the connector.
         await prisma.socialPublication.update({ where: { id: scheduled.id }, data: { status: 'READY', lastError: null } });
@@ -210,7 +210,7 @@ test('the publication engine mints an Instagram-only public link, passes it to t
         const afterPending = await prisma.socialPublication.findUniqueOrThrow({ where: { id: scheduled.id } });
         assert.equal(afterPending.status, 'PUBLISHING');
 
-        const link = await prisma.quizVideoPublicLink.findFirstOrThrow({ where: { quizVideoId: video.id } });
+        const link = await prisma.videoPublicLink.findFirstOrThrow({ where: { videoId: video.id } });
         assert.equal(link.revokedAt, null, 'still PENDING: Meta may not have fetched it yet, must not be revoked');
 
         // The minted link actually works against the real HTTP route (closes the loop end to end).
@@ -227,8 +227,8 @@ test('the publication engine mints an Instagram-only public link, passes it to t
         await prisma.socialPublicationAttempt.deleteMany({ where: { publication: { projectId: project.id } } });
         await prisma.socialPublication.deleteMany({ where: { projectId: project.id } });
         await prisma.socialAccount.deleteMany({ where: { projectId: project.id } });
-        await prisma.quizVideoPublicLink.deleteMany({ where: { quizVideo: { projectId: project.id } } });
-        await prisma.quizVideo.deleteMany({ where: { projectId: project.id } });
+        await prisma.videoPublicLink.deleteMany({ where: { video: { projectId: project.id } } });
+        await prisma.video.deleteMany({ where: { projectId: project.id } });
         await prisma.projectVoice.deleteMany({ where: { projectId: project.id } });
         await prisma.projectSettings.deleteMany({ where: { projectId: project.id } });
         await prisma.project.delete({ where: { id: project.id } });

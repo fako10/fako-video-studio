@@ -27,28 +27,28 @@ export const publicQuizVideoRoutes: FastifyPluginAsync<{ prisma: PrismaClient; v
         const link = await resolvePublicVideoLink(prisma, request.params.token);
         // "Not found", "expired" and "revoked" all return the exact same generic 404 — a probing
         // request must never learn which one it hit. The token itself is never logged, only here and
-        // in every branch below; only the outcome and (once resolved) the quizVideoId are.
+        // in every branch below; only the outcome and (once resolved) the videoId are.
         if (!link) { request.log.info({ event: 'public_quiz_video_link', result: 'miss' }); return reply.code(404).send(); }
 
-        const quizVideo = await prisma.quizVideo.findUnique({ where: { id: link.quizVideoId }, select: { fileKey: true } });
+        const quizVideo = await prisma.video.findUnique({ where: { id: link.videoId }, select: { fileKey: true } });
         if (!quizVideo?.fileKey) {
-            request.log.warn({ event: 'public_quiz_video_link', result: 'no_file_key', quizVideoId: link.quizVideoId });
+            request.log.warn({ event: 'public_quiz_video_link', result: 'no_file_key', videoId: link.videoId });
             return reply.code(404).send();
         }
 
         let buffer: Buffer;
         try { buffer = await videoStorage.read(quizVideo.fileKey); }
         catch {
-            request.log.warn({ event: 'public_quiz_video_link', result: 'file_unreadable', quizVideoId: link.quizVideoId });
+            request.log.warn({ event: 'public_quiz_video_link', result: 'file_unreadable', videoId: link.videoId });
             return reply.code(404).send();
         }
         if (buffer.length === 0) {
-            request.log.warn({ event: 'public_quiz_video_link', result: 'empty_file', quizVideoId: link.quizVideoId });
+            request.log.warn({ event: 'public_quiz_video_link', result: 'empty_file', videoId: link.videoId });
             return reply.code(404).send();
         }
 
         await markPublicVideoLinkConsumed(prisma, link.id);
-        request.log.info({ event: 'public_quiz_video_link', result: 'served', quizVideoId: link.quizVideoId, bytes: buffer.length });
+        request.log.info({ event: 'public_quiz_video_link', result: 'served', videoId: link.videoId, bytes: buffer.length });
         return reply.type('video/mp4').header('Content-Length', String(buffer.length)).send(buffer);
     });
 };

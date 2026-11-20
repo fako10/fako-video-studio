@@ -119,6 +119,8 @@ export function mockConnectors(scenario: MockScenario = 'FULL_ACCESS', publishSc
     return {
         TIKTOK: new MockSocialConnector('TIKTOK', scenario, true, publishScenario),
         INSTAGRAM: new MockSocialConnector('INSTAGRAM', scenario, true, publishScenario),
-        FACEBOOK: new MockSocialConnector('FACEBOOK', scenario, true, publishScenario)
+        FACEBOOK: new MockSocialConnector('FACEBOOK', scenario, true, publishScenario),
+        YOUTUBE: new MockSocialConnector('YOUTUBE', scenario, true, publishScenario),
+        SNAPCHAT: new MockSocialConnector('SNAPCHAT', scenario, true, publishScenario)
     };
 }

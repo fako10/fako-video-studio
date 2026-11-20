@@ -58,7 +58,7 @@ for (const platform of PLATFORMS) {
 
 test('mockConnectors() returns one connector per supported platform', () => {
     const connectors = mockConnectors();
-    assert.deepEqual(Object.keys(connectors).sort(), ['FACEBOOK', 'INSTAGRAM', 'TIKTOK']);
+    assert.deepEqual(Object.keys(connectors).sort(), ['FACEBOOK', 'INSTAGRAM', 'SNAPCHAT', 'TIKTOK', 'YOUTUBE']);
 });
 
 const SAMPLE_PUBLISH_REQUEST = {

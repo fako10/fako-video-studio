@@ -1,7 +1,7 @@
 import { FacebookPagesConnector } from './adapters/facebook.js';
 import { InstagramConnector } from './adapters/instagram.js';
 import { TikTokConnector } from './adapters/tiktok.js';
-import type { SocialPlatformConnector } from './connector.js';
+import { UnavailableConnector, type SocialPlatformConnector } from './connector.js';
 import { mockConnectors } from './mocks.js';
 import type { SocialPlatform } from './types.js';
 
@@ -18,6 +18,8 @@ export function socialConnectorsFromEnv(env: NodeJS.ProcessEnv): Record<SocialPl
     return {
         TIKTOK: new TikTokConnector(env.TIKTOK_CLIENT_KEY, env.TIKTOK_CLIENT_SECRET),
         INSTAGRAM: new InstagramConnector(env.INSTAGRAM_APP_ID, env.INSTAGRAM_APP_SECRET),
-        FACEBOOK: new FacebookPagesConnector(env.FACEBOOK_APP_ID, env.FACEBOOK_APP_SECRET)
+        FACEBOOK: new FacebookPagesConnector(env.FACEBOOK_APP_ID, env.FACEBOOK_APP_SECRET),
+        YOUTUBE: new UnavailableConnector('YOUTUBE'),
+        SNAPCHAT: new UnavailableConnector('SNAPCHAT')
     };
 }

@@ -26,7 +26,7 @@ export function publicationsListPage(options: {
     const { filters } = options;
     const rows = options.publications.map(p => `
 <tr>
-  <td data-label="Vidéo"><a href="/admin/quiz-videos/${p.quizVideoId}">${p.quizVideoId.slice(0, 8)}</a> <span class="muted">(${escapeHtml(p.language.toUpperCase())})</span></td>
+  <td data-label="Vidéo"><a href="/admin/quiz-videos/${p.videoId}">${p.videoId.slice(0, 8)}</a> <span class="muted">(${escapeHtml(p.language.toUpperCase())})</span></td>
   <td data-label="Destination">${PLATFORM_LABELS[p.platform]}</td>
   <td data-label="Statut"><span class="pill ${statusPillKind(p.status)}">${escapeHtml(STATUS_LABELS[p.status])}</span></td>
   <td data-label="Programmée">${formatDate(p.scheduledAt)}</td>

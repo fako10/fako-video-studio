@@ -33,16 +33,16 @@ test('invalid requests are rejected by schema validation before touching persist
         assert.equal((await app.inject({ method: 'GET', url: '/projects/not-a-uuid/social-publications', headers })).statusCode, 400);
         assert.equal((await app.inject({ method: 'GET', url: '/social-publications/not-a-uuid', headers })).statusCode, 400);
         assert.equal((await app.inject({
-            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { quizVideoId: uuid, socialAccountId: uuid, language: 'de', caption: 'x', requestId: uuid, createdBy: 'admin' }
+            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { videoId: uuid, socialAccountId: uuid, language: 'de', caption: 'x', requestId: uuid, createdBy: 'admin' }
         })).statusCode, 400, 'language must be fr or nl');
         assert.equal((await app.inject({
-            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { quizVideoId: uuid, socialAccountId: uuid, language: 'fr', caption: '', requestId: uuid, createdBy: 'admin' }
+            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { videoId: uuid, socialAccountId: uuid, language: 'fr', caption: '', requestId: uuid, createdBy: 'admin' }
         })).statusCode, 400, 'caption must be non-empty');
         assert.equal((await app.inject({
-            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { quizVideoId: uuid, socialAccountId: uuid, language: 'fr', caption: 'x', scheduledAtLocal: '2026-07-01T09:00:00Z', requestId: uuid, createdBy: 'admin' }
+            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { videoId: uuid, socialAccountId: uuid, language: 'fr', caption: 'x', scheduledAtLocal: '2026-07-01T09:00:00Z', requestId: uuid, createdBy: 'admin' }
         })).statusCode, 400, 'scheduledAtLocal must be a bare wall-clock string, never an absolute ISO instant');
         assert.equal((await app.inject({
-            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { quizVideoId: 'not-a-uuid', socialAccountId: uuid, language: 'fr', caption: 'x', requestId: uuid, createdBy: 'admin' }
+            method: 'POST', url: `/projects/${uuid}/social-publications`, headers, payload: { videoId: 'not-a-uuid', socialAccountId: uuid, language: 'fr', caption: 'x', requestId: uuid, createdBy: 'admin' }
         })).statusCode, 400);
         assert.equal((await app.inject({ method: 'POST', url: `/social-publications/${uuid}/cancel`, headers, payload: {} })).statusCode, 400, 'cancelledBy is required');
         assert.equal((await app.inject({ method: 'PATCH', url: `/social-publications/${uuid}`, headers, payload: { caption: '' } })).statusCode, 400);

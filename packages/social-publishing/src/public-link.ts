@@ -16,36 +16,36 @@ function hashToken(token: string): string {
 }
 
 export async function createPublicVideoLink(
-    prisma: PrismaClient, quizVideoId: string, baseUrl: string, ttlMs: number = DEFAULT_PUBLIC_VIDEO_LINK_TTL_MS
+    prisma: PrismaClient, videoId: string, baseUrl: string, ttlMs: number = DEFAULT_PUBLIC_VIDEO_LINK_TTL_MS
 ): Promise<string> {
     const token = randomBytes(32).toString('base64url'); // 256 bits, URL-safe, never persisted raw
-    await prisma.quizVideoPublicLink.create({
-        data: { quizVideoId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + ttlMs) }
+    await prisma.videoPublicLink.create({
+        data: { videoId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + ttlMs) }
     });
     return `${baseUrl.replace(/\/+$/, '')}/public/quiz-video-links/${token}`;
 }
 
-export type ResolvedPublicVideoLink = { id: string; quizVideoId: string };
+export type ResolvedPublicVideoLink = { id: string; videoId: string };
 
 // Returns null for "not found", "expired" and "revoked" alike — the caller (the HTTP route) must
 // respond identically (a generic 404) in every case, so a probing request never learns which one it
 // hit.
 export async function resolvePublicVideoLink(prisma: PrismaClient, token: string): Promise<ResolvedPublicVideoLink | null> {
-    const link = await prisma.quizVideoPublicLink.findUnique({ where: { tokenHash: hashToken(token) } });
+    const link = await prisma.videoPublicLink.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!link || link.revokedAt || link.expiresAt.getTime() <= Date.now()) return null;
-    return { id: link.id, quizVideoId: link.quizVideoId };
+    return { id: link.id, videoId: link.videoId };
 }
 
 // `updateMany` + a `consumedAt: null` guard (not `update`) so a second fetch (Meta is documented to
 // retry transient failures) never overwrites the first successful-serve timestamp.
 export async function markPublicVideoLinkConsumed(prisma: PrismaClient, id: string): Promise<void> {
-    await prisma.quizVideoPublicLink.updateMany({ where: { id, consumedAt: null }, data: { consumedAt: new Date() } });
+    await prisma.videoPublicLink.updateMany({ where: { id, consumedAt: null }, data: { consumedAt: new Date() } });
 }
 
 // Called once the engine knows Meta either already fetched the video or never will need to again:
 // the publication reached a terminal status (PUBLISHED/FAILED) or was cancelled by an admin. Safe to
 // revoke every outstanding link for the video at that point — never while a publish attempt is still
 // genuinely in flight (PENDING/PUBLISHING), since Meta may not have fetched it yet.
-export async function revokePublicVideoLinksForQuizVideo(prisma: PrismaClient, quizVideoId: string): Promise<void> {
-    await prisma.quizVideoPublicLink.updateMany({ where: { quizVideoId, revokedAt: null }, data: { revokedAt: new Date() } });
+export async function revokePublicVideoLinksForQuizVideo(prisma: PrismaClient, videoId: string): Promise<void> {
+    await prisma.videoPublicLink.updateMany({ where: { videoId, revokedAt: null }, data: { revokedAt: new Date() } });
 }

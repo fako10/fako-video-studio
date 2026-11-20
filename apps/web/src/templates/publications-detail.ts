@@ -54,7 +54,7 @@ ${flashHtml(options.query ?? {})}
     <span class="pill ${statusPillKind(p.status)}">${escapeHtml(STATUS_LABELS[p.status])}</span>
   </div>
   <dl class="trace">
-    <dt>Vidéo</dt><dd><a href="/admin/quiz-videos/${p.quizVideoId}">${p.quizVideoId}</a></dd>
+    <dt>Vidéo</dt><dd><a href="/admin/quiz-videos/${p.videoId}">${p.videoId}</a></dd>
     <dt>Programmée pour</dt><dd>${formatDate(p.scheduledAt)}</dd>
     <dt>Publiée le</dt><dd>${formatDate(p.publishedAt)}</dd>
     <dt>Tentatives</dt><dd>${p.attempts}</dd>

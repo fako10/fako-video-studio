@@ -9,6 +9,8 @@ import Fastify, { type FastifyError } from 'fastify';
 import { Prisma, PrismaClient, type SocialPlatform } from '@prisma/client';
 import { createPrismaClient } from '@fako/db';
 import { projectRoutes } from './routes/projects.js';
+import { catalogRoutes } from './routes/catalog.js';
+import { createDefaultRegistry } from '@fako/video-types';
 import { publicQuizVideoRoutes } from './routes/public-quiz-videos.js';
 import { rijPermisRoutes } from './routes/rijpermis.js';
 import { quizVideoRoutes } from './routes/quiz-videos.js';
@@ -71,6 +73,7 @@ export function buildApp(options: {
     // group below already required a Bearer token). Same shared-secret convention as the rest of
     // this API: defaults to QUIZ_VIDEO_API_TOKEN, overridable per group like quizVideoToken/schedulerToken.
     app.register(projectRoutes, { prisma, token: options.projectsToken ?? process.env.QUIZ_VIDEO_API_TOKEN });
+    app.register(catalogRoutes, { prisma, token: options.projectsToken ?? process.env.QUIZ_VIDEO_API_TOKEN, registry: createDefaultRegistry() });
     app.register(videoJobRoutes, { prisma, token: options.videoJobsToken ?? process.env.QUIZ_VIDEO_API_TOKEN });
     app.register(videoScriptRoutes, {
         prisma, enabled: options.scriptGenerationEnabled ?? process.env.AI_PROVIDER === 'openai',
